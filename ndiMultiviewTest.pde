@@ -13,9 +13,25 @@ PGraphics dstCanvas;
 
 void setup(){
   ndiSources = new HashMap<String,DevolaySource>();
+  System.out.println("loadingLibraries...");
   Devolay.loadLibraries();
   ndiFinder = new DevolayFinder();
-  windowGrid = new WindowGrid(4, 4, 0, 0);
+  System.out.println("Creating WindowGrid...");
+  windowGrid = new WindowGrid(2, 2, 0, 0);
+  size(640, 360);
+  //fullScreen();
+  dstCanvas = createGraphics(width, height);
+  windowGrid.setOutputSize(width, height);
+  System.out.println("setup complete");
+}
+
+void draw(){
+  background(0);
+  dstCanvas.beginDraw();
+  dstCanvas.background(0);
+  windowGrid.render(dstCanvas);
+  dstCanvas.endDraw();
+  image(dstCanvas, 0, 0);
 }
 
 //void loadWindows(String jsonData){
@@ -72,6 +88,7 @@ class WindowGrid {
   float xSpacing, ySpacing;
   HashMap<String,Window> windowMap;
   Window[][] windows;
+  HashMap<String,FrameThread> updateThreads;
   
   WindowGrid(int _cols, int _rows, int _outWidth, int _outHeight) {
     cols = _cols;
@@ -80,7 +97,9 @@ class WindowGrid {
     ySpacing = 2;
     outWidth = _outWidth;
     outHeight = _outHeight;
+    init();
   }
+  
   WindowGrid(JSONObject json, int _outWidth, int _outHeight){
     cols = json.getInt("cols");
     rows = json.getInt("rows");
@@ -88,6 +107,13 @@ class WindowGrid {
     ySpacing = json.getFloat("ySpacing");
     outWidth = _outWidth;
     outHeight = _outHeight;
+    init();
+  }
+  
+  private void init(){
+    windowMap = new HashMap<String,Window>();
+    updateThreads = new HashMap<String,FrameThread>();
+    windows = new Window[cols][rows];
   }
   
   Box calcBox(int col, int row){
@@ -122,8 +148,18 @@ class WindowGrid {
           win.connectToSource();
         }
       } else {
+        FrameThread t;
         if (!win.gettingFrame){
-          win.getFrame();
+          if (updateThreads.containsKey(win.getId())){
+            t = updateThreads.get(win.getId());
+            if (t.getState() != Thread.State.TERMINATED){
+              continue;
+            }
+            updateThreads.remove(win.getId());
+          }
+          t = new FrameThread(win);
+          updateThreads.put(win.getId(), t);
+          t.start();
         }
       }
     }
@@ -132,6 +168,7 @@ class WindowGrid {
   void render(PGraphics canvas){
     float w = outWidth / rows;
     float h = outHeight / cols;
+    scheduleFrames();
     canvas.stroke(255);
     
     for (int y=0; y < rows; y++){
@@ -141,6 +178,9 @@ class WindowGrid {
       canvas.line(x * w, 0, x * w, outHeight);  
     }
     for (Window win : windowMap.values()){
+      if (win.frameReady){
+        win.updateFrame();
+      }
       win.render(canvas);
     }
   }
@@ -159,6 +199,7 @@ class Window {
   boolean frameReady = false;
   boolean gettingFrame = false;
   boolean connecting = false;
+  boolean canvasReady = false;
   PGraphics srcCanvas,dstCanvas;
   DevolaySource ndiSource;
   DevolayReceiver ndiReceiver;
@@ -285,14 +326,14 @@ class Window {
   }
   
   DevolayFrameType getFrame() {
-    gettingFrame = true;
+    //gettingFrame = true;
     DevolayFrameType frameType = DevolayFrameType.NONE;
     try {
       frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, metadataFrame, 5000);
     //} catch (Exception e) {
       //frameType = DevolayFrameType.NONE;
     } finally {
-      gettingFrame = false;
+      //gettingFrame = false;
       lastFrameType = frameType;
     }
     //switch (frameType) {
@@ -302,7 +343,40 @@ class Window {
     //    videoFrame.
     //}
     if (frameType == DevolayFrameType.VIDEO){
-      int frameWidth = videoFrame.getXResolution();
+    //  int frameWidth = videoFrame.getXResolution();
+    //  int frameHeight = videoFrame.getYResolution();
+    //  if (srcWidth != frameWidth || srcHeight != frameHeight){
+    //    srcWidth = frameWidth;
+    //    srcHeight = frameHeight;
+    //    srcCanvas = createGraphics(srcWidth, srcHeight);
+    //  }
+    //  ByteBuffer framePixels = videoFrame.getData();
+    //  PImage img = new PImage(frameWidth, frameHeight, PConstants.ARGB);
+    //  img.loadPixels();
+      
+    //  for (int _y=0; _y < videoFrame.getYResolution(); _y++){
+    //    for (int _x=0; _x < frameWidth; _x++){
+    //      int pixel = _y * frameWidth + _x;
+    //      int byteIndex = pixel * 4;
+    //      int colorValue = 0;
+    //      colorValue &= framePixels.getInt(byteIndex+0) << 16;    // R
+    //      colorValue &= framePixels.getInt(byteIndex+1) << 8;     // G
+    //      colorValue &= framePixels.getInt(byteIndex+2) << 0;     // B
+    //      colorValue &= framePixels.getInt(byteIndex+3) << 24;    // A
+    //      img.pixels[pixel] = colorValue;
+    //    }
+    //  }
+    //  img.updatePixels();
+    //  srcCanvas.beginDraw();
+    //  srcCanvas.image(img, 0, 0);
+    //  srcCanvas.endDraw();
+      //frameReady = true;
+    }
+    return frameType;
+  }
+  
+  void updateFrame(){
+    int frameWidth = videoFrame.getXResolution();
       int frameHeight = videoFrame.getYResolution();
       if (srcWidth != frameWidth || srcHeight != frameHeight){
         srcWidth = frameWidth;
@@ -329,25 +403,38 @@ class Window {
       srcCanvas.beginDraw();
       srcCanvas.image(img, 0, 0);
       srcCanvas.endDraw();
-      frameReady = true;
-    }
-    return frameType;
+      frameReady = false;
+      canvasReady = true;
   }
   
   void render(PGraphics canvas){
-    if (frameReady){
+    if (canvasReady){
       canvas.image(srcCanvas, bBox.pos.x, bBox.pos.y, bBox.size.x, bBox.size.y);
-      frameReady = false;
+      canvasReady = false;
     }
   }
 }
 
 class FrameThread extends Thread {
   Window win;
+  DevolayFrameType frameType;
+  Exception error;
   FrameThread(Window _win){
     win = _win;
   }
   public void run(){
-    win.getFrame();
+    DevolayFrameType ft;
+    win.frameReady = false;
+    win.gettingFrame = true;
+    try {
+      frameType = win.getFrame();
+      win.frameReady = true;
+    } catch (Exception e) {
+      frameType = DevolayFrameType.NONE;
+      error = e;
+      throw(e);
+    } finally {
+      win.gettingFrame = false;
+    }
   }
 }
