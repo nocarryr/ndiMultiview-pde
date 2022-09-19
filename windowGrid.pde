@@ -31,6 +31,20 @@ class WindowGrid {
     windows = new Window[cols][rows];
   }
   
+  void updateNdiSources(){
+    for (Window win : windowMap.values()){
+      win.updateNdiSources();
+    }
+  }
+  
+  void close(){
+    System.out.println("closing windows...");
+    for (Window win : windowMap.values()){
+      win.disconnect();
+    }
+    System.out.println("windows closed");
+  }
+  
   Box calcBox(int col, int row){
     float w = outWidth / rows;
     float h = outHeight / cols;
@@ -55,38 +69,47 @@ class WindowGrid {
   
   void scheduleFrames(){
     for (Window win : windowMap.values()){
-      if (win.gettingFrame){
-        continue;
-      }
+      //if (win.gettingFrame){
+      //  continue;
+      //}
       if (!win.isConnected()){
         if (win.canConnect() && !win.connecting){
           win.connectToSource();
         }
-      } else {
-        FrameThread t;
-        if (!win.gettingFrame){
-          if (updateThreads.containsKey(win.getId())){
-            t = updateThreads.get(win.getId());
-            if (t.getState() != Thread.State.TERMINATED){
-              continue;
-            }
-            updateThreads.remove(win.getId());
-          }
-          t = new FrameThread(win);
-          updateThreads.put(win.getId(), t);
-          t.start();
+      } else if (!win.frameReady){
+        DevolayFrameType ft = win.getFrameNoWait();
+        if (win.frameReady && !win.canvasReady){
+          win.updateFrame();
         }
+        //FrameThread t;
+        //if (!win.gettingFrame){
+        //  if (updateThreads.containsKey(win.getId())){
+        //    t = updateThreads.get(win.getId());
+        //    if (t.getState() != Thread.State.TERMINATED){
+        //      continue;
+        //    }
+        //    updateThreads.remove(win.getId());
+        //  }
+        //  t = new FrameThread(win);
+        //  updateThreads.put(win.getId(), t);
+        //  t.start();
       }
     }
   }
   
   void render(PGraphics canvas){
-    scheduleFrames();
-    for (Window win : windowMap.values()){
-      if (win.frameReady){
-        win.updateFrame();
+    try {
+      scheduleFrames();
+      for (Window win : windowMap.values()){
+        if (win.frameReady && !win.canvasReady){
+          win.updateFrame();
+        }
+        win.render(canvas);
       }
-      win.render(canvas);
+    } catch(Exception e){
+      close();
+      e.printStackTrace();
+      throw(e);
     }
   }
 }
