@@ -1,22 +1,22 @@
 import java.util.List;
 import java.util.Map;
 
-
 class Window {
   String name = "";
   int col,row;
   Point padding;
   Box boundingBox, frameBox;
-  String ndiSourceName = ""; 
+  String ndiSourceName = "";
   int srcWidth,srcHeight;
   int numFrames = 0, numDraws = 0;
-  int maxColorValue = 0;
+  long droppedFrames = 0;
   boolean frameReady = false;
   boolean gettingFrame = false;
   boolean connecting = false;
   boolean canvasReady = false;
-  //PGraphics srcCanvas,dstCanvas;
+  boolean clearImageOnNextFrame = false;
   PImage srcImage;
+
   DevolaySource ndiSource;
   DevolayReceiver ndiReceiver;
   DevolayVideoFrame videoFrame;
@@ -24,7 +24,7 @@ class Window {
   DevolayMetadataFrame metadataFrame;
   DevolayFrameType lastFrameType;
   WindowControls controls;
-  
+
   Window(String _name, int _col, int _row, float _x, float _y, float _w, float _h, Point _padding, String _ndiSourceName) {
     name = _name;
     col = _col;
@@ -34,7 +34,7 @@ class Window {
     ndiSourceName = _ndiSourceName;
     init();
   }
-  
+
   Window(String _name, int _col, int _row, Box _boundingBox, Point _padding, String _ndiSourceName) {
     name = _name;
     col = _col;
@@ -44,7 +44,7 @@ class Window {
     ndiSourceName = _ndiSourceName;
     init();
   }
-  
+
   Window(JSONObject json, Box _boundingBox, Point _padding){
     name = json.getString("name");
     col = json.getInt("col");
@@ -54,39 +54,39 @@ class Window {
     ndiSourceName = json.getString("ndiSourceName");
     init();
   }
-  
+
   private void init(){
     frameBox = calcFrameBox();
-    System.out.println(String.format("bBox: %s, frame: %s", boundingBox.toStr(), frameBox.toStr()));
+    System.out.println(String.format("%s bBox: %s, frame: %s", getId(), boundingBox.toStr(), frameBox.toStr()));
     lastFrameType = DevolayFrameType.NONE;
     srcWidth = 1920;
     srcHeight = 1080;
-    //srcCanvas = createGraphics(srcWidth, srcHeight);
     srcImage = new PImage(srcWidth, srcHeight, ARGB);
+
     //connectToSource();
     controls = new WindowControls(this);
   }
-  
+
   Box calcFrameBox(){
     Point pos = new Point(boundingBox.getX() + padding.x, boundingBox.getY() + padding.y);
-    Point size = new Point(boundingBox.size.x - padding.x*2, boundingBox.size.y - padding.y*2); 
-    return new Box(pos, size); 
+    Point size = new Point(boundingBox.size.x - padding.x*2, boundingBox.size.y - padding.y*2);
+    return new Box(pos, size);
   }
-  
+
   void setBoundingBox(Box _boundingBox){
     boundingBox = _boundingBox;
     frameBox = calcFrameBox();
     controls.initControls();
   }
-  
+
   String getId(){
     return String.format("%02d-%02d", col, row);
   }
-  
+
   void setSourceName(String srcName){
     setSourceName(srcName, true);
   }
-  
+
   void setSourceName(String srcName, boolean updateControls){
     if (srcName == ndiSourceName){
       return;
@@ -99,28 +99,41 @@ class Window {
       updateNdiSources();
     }
   }
-  
+
   void updateNdiSources(){
     controls.updateDropdownItems();
   }
-  
+
   void connectToSource(){
-    disconnect();
+    if (ndiSourceName == "" && ndiReceiver != null){
+      ndiReceiver.connect(null);
+      ndiSource = null;
+      clearImageOnNextFrame = true;
+      return;
+    }
     if (!ndiSources.containsKey(ndiSourceName)){
+      if (ndiReceiver != null){
+        ndiReceiver.connect(null);
+        ndiSource = null;
+        clearImageOnNextFrame = true;
+      }
       return;
     }
     connecting = true;
     try {
       ndiSource = ndiSources.get(ndiSourceName);
-      ndiReceiver = new DevolayReceiver(ndiSource, DevolayReceiver.ColorFormat.RGBX_RGBA, DevolayReceiver.RECEIVE_BANDWIDTH_HIGHEST, true, null); 
+      ndiReceiver = new DevolayReceiver(ndiSource, DevolayReceiver.ColorFormat.RGBX_RGBA, DevolayReceiver.RECEIVE_BANDWIDTH_LOWEST, false, null);
       videoFrame = new DevolayVideoFrame();
       audioFrame = new DevolayAudioFrame();
       metadataFrame = new DevolayMetadataFrame();
+    } catch (Exception e){
+      clearImageOnNextFrame = true;
+      throw(e);
     } finally {
       connecting = false;
     }
   }
-  
+
   void disconnect(){
     if (ndiReceiver != null){
       ndiReceiver.close();
@@ -145,9 +158,10 @@ class Window {
     connecting = false;
     numFrames = 0;
     numDraws = 0;
-    maxColorValue = 0;
+    droppedFrames = 0;
+    clearImageOnNextFrame = true;
   }
-  
+
   boolean isConnected(){
      if (ndiSource == null){
        return false;
@@ -160,11 +174,11 @@ class Window {
      }
      return true;
   }
-  
+
   boolean canConnect(){
     return (ndiSourceName.length() > 0);
   }
-  
+
   DevolayFrameType getFrame(int timeout) {
     DevolayFrameType frameType = DevolayFrameType.NONE;
     if (frameReady){
@@ -172,28 +186,40 @@ class Window {
     }
     //gettingFrame = true;
     try {
-      frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, metadataFrame, timeout);
+      //frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, metadataFrame, timeout);
+      frameType = ndiReceiver.receiveCapture(videoFrame, null, null, timeout);
     } finally {
       lastFrameType = frameType;
-      //gettingFrame = false;
     }
     if (lastFrameType == DevolayFrameType.VIDEO){
-      //System.out.println(getId()+" got video frame");
       frameReady = true;
       numFrames += 1;
     }
+    try (DevolayPerformanceData performanceData = new DevolayPerformanceData()) {
+      ndiReceiver.queryPerformance(performanceData);
+      long _droppedFrames = performanceData.getDroppedVideoFrames();
+      long _totalFrames = performanceData.getTotalVideoFrames();
+      if (_droppedFrames != droppedFrames){
+        droppedFrames = _droppedFrames;
+        System.out.println(String.format("Dropped Video: %d / %d", droppedFrames, _totalFrames));
+        
+      }
+    }
     return frameType;
   }
-  
+
   DevolayFrameType getFrameNoWait(){
     return getFrame(0);
   }
-  
+
   void updateFrame(){
     int frameWidth = videoFrame.getXResolution();
     int frameHeight = videoFrame.getYResolution();
-    //System.out.println(String.format("%s frameDims: (%d, %d)", getId(), frameWidth, frameHeight));
+    DevolayFrameFourCCType fourCC = videoFrame.getFourCCType();
+    assert (fourCC == DevolayFrameFourCCType.RGBA || fourCC == DevolayFrameFourCCType.RGBX);
+    
     if (frameWidth == 0 || frameHeight == 0){
+      System.out.println("frameSize = 0");
       srcWidth = 0;
       srcHeight = 0;
       frameReady = false;
@@ -201,129 +227,94 @@ class Window {
       return;
     }
     if (srcWidth != frameWidth || srcHeight != frameHeight){
+      System.out.println(String.format("resize image to %dx%d", frameWidth, frameHeight));
       srcWidth = frameWidth;
       srcHeight = frameHeight;
       if (srcWidth != srcImage.width || srcHeight != srcImage.height){
-        srcImage.init(frameWidth, frameHeight, ARGB, 1);
-        //srcImage.resize(frameWidth, frameHeight);
+        srcImage.init(frameWidth, frameHeight, ARGB);
       }
       assert srcImage.pixels.length == srcWidth * srcHeight;
-      //srcCanvas = createGraphics(srcWidth, srcHeight);
     }
     assert videoFrame.getLineStride() == frameWidth * 4;
+    
     ByteBuffer framePixels = videoFrame.getData();
-    //PImage img = new PImage(frameWidth, frameHeight, PConstants.ARGB);
-    srcImage.loadPixels();
     
     int byteIndex = 0;
     
     for (int _y=0; _y < frameHeight; _y++){
       for (int _x=0; _x < frameWidth; _x++){
         int pixel = _y * frameWidth + _x;
-        //int byteIndex = pixel * 4;
         int colorValue = 0;
-        byte r, g, b, a;
-        r = framePixels.get();
-        g = framePixels.get();
-        b = framePixels.get();
-        a = framePixels.get();
-        colorValue &= a << 24;
-        colorValue &= r << 16;
-        colorValue &= g << 8;
-        colorValue &= b;
-        
-        //color c = color(r,g,b,a);
-        //srcImage.set(_x, _y, c); 
-        
-        //colorValue &= framePixels.get(byteIndex+0) << 16;    // R
-        //colorValue &= framePixels.get(byteIndex+1) << 8;     // G
-        //colorValue &= framePixels.get(byteIndex+2) << 0;     // B
-        ////colorValue &= framePixels.get(byteIndex+3) << 24;    // A
-        //colorValue &= 255 << 24;
-        //colorValue &= framePixels.getInt(byteIndex+0) << 16;    // R
-        //colorValue &= framePixels.getInt(byteIndex+1) << 8;     // G
-        //colorValue &= framePixels.getInt(byteIndex+2) << 0;     // B
-        //colorValue &= framePixels.getInt(byteIndex+3) << 24;    // A
-        
+        int r, g, b, a;
+         
+        r = (framePixels.get() & 0xff) << 16;
+        g = (framePixels.get() & 0xff) << 8;
+        b = (framePixels.get() & 0xff);
+        a = (framePixels.get() & 0xff) << 24;
+        colorValue = r | b | g | a;
         
         srcImage.pixels[pixel] = colorValue;
         byteIndex += 4;
         assert framePixels.position() == byteIndex;
-        int rgbMask = 0xffffffff;
-        if ((colorValue & rgbMask) > maxColorValue){
-          maxColorValue = colorValue & rgbMask;
-        }
       }
     }
-    //srcImage.updatePixels();
-    //for (int _y=0; _y < frameHeight; _y++){
-    //  for (int _x=0; _x < frameWidth; _x++){
-    //    int pixel = _y * frameWidth + _x;
-    //    int imgValue = srcImage.get(_x, _y);
-    //    assert srcImage.pixels[pixel] == imgValue;
-    //  }
-    //}
-    
-    //srcCanvas.beginDraw();
-    //srcCanvas.image(img, 0, 0);
-    //srcCanvas.endDraw();
+    srcImage.updatePixels();
+     
     frameReady = false;
     canvasReady = true;
     numDraws += 1;
   }
-  
+
   void render(PGraphics canvas){
     canvas.stroke(0);
     canvas.fill(255);
-    canvas.rect(boundingBox.pos.x, boundingBox.pos.y, boundingBox.size.x, boundingBox.size.y); 
+    canvas.rect(boundingBox.pos.x, boundingBox.pos.y, boundingBox.size.x, boundingBox.size.y);
     canvas.fill(0);
     canvas.rect(frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
-    if (canvasReady){
-      canvas.image(srcImage, frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
-      canvasReady = false;
+    if (clearImageOnNextFrame){
+      for (int _i=0; _i < srcImage.width * srcImage.height; _i++){
+        srcImage.pixels[_i] = 0;
+      }
+      srcImage.updatePixels();
+      clearImageOnNextFrame = false;
     }
-    //canvas.textFont(windowFont);
-    //canvas.stroke(255);
-    //canvas.fill(255);
-    //canvas.textAlign(CENTER, TOP);
-    //canvas.text(name, frameBox.getHCenter(), frameBox.pos.y); 
-    //String imgString = String.format("%dx%d", srcWidth, srcHeight);
-    //canvas.textAlign(RIGHT, TOP);
-    //canvas.text(imgString, frameBox.getRight(), frameBox.pos.y);
-    ////String readyString = String.format("frameReady: %s", "1" ? frameReady : "0");
-    //canvas.textAlign(LEFT, BOTTOM);
-    //canvas.text(String.format("numFrames: %d", numFrames), frameBox.pos.x, frameBox.getBottom());
-    ////canvas.text(getBoolLabel("frameReady: %s", frameReady), frameBox.pos.x, frameBox.getBottom());
-    ////String connectedString = String.format("connected: %s", "1" ? isConnected() : "0");
-    //canvas.textAlign(RIGHT, BOTTOM);
-    //canvas.text(String.format("numDraws: %d", numDraws), frameBox.getRight(), frameBox.getBottom());
-    ////canvas.text(getBoolLabel("connected: %s", isConnected()), frameBox.getRight(), frameBox.getBottom());
-    //canvas.textAlign(CENTER, BOTTOM);
-    //canvas.text(String.format("%h", maxColorValue), frameBox.getHCenter(), frameBox.getBottom());
-  }
-  String getBoolLabel(String fmt, boolean value){
-    String strValue;
-    if (value){
-      strValue = "1";
-    } else {
-      strValue = "0";
-    }
-    return String.format(fmt, strValue);
+    canvas.image(srcImage, frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
+    canvasReady = false;
+    canvas.textFont(windowFont);
+    canvas.stroke(255);
+    canvas.fill(255);
+    canvas.textAlign(CENTER, TOP);
+    canvas.text(name, frameBox.getHCenter(), frameBox.pos.y);
+    String imgString = String.format("%dx%d", srcWidth, srcHeight);
+    canvas.textAlign(RIGHT, TOP);
+    canvas.text(imgString, frameBox.getRight(), frameBox.pos.y);
+    //if (videoFrame != null){
+    //  canvas.textAlign(CENTER, BOTTOM);
+    //  canvas.text(timecodeStr(videoFrame.getTimecode()), frameBox.getHCenter(), frameBox.getBottom());
+    //}
   }
 }
 
 class WindowControls {
   Window win;
-  //CallbackListener cb;
-  //Button dropdownBtn;
+  String winId;
   DropdownList sourceDropdown;
   WindowControls(Window _win){
     win = _win;
-    initControls();
+    winId = _win.getId();
+    initControls(true);
+  }
+
+  void initControls(){
+    initControls(false);
   }
   
-  void initControls(){
-    String dropdownId = win.getId() + "-dropdown";
+  void initControls(boolean create){
+    if (sourceDropdown == null && !create){
+      return;
+    }
+    System.out.println("initControls: win.getId = '" + win.getId() + "', myId='" + winId + "'");
+    String dropdownId = winId + "-dropdown";
     Point ddPos = new Point(win.frameBox.pos.x, win.frameBox.pos.y);
     if (sourceDropdown == null){
       buildSourceDropdown(dropdownId, ddPos);
@@ -331,8 +322,11 @@ class WindowControls {
       sourceDropdown.setPosition(ddPos.x, ddPos.y);
     }
   }
-  
+
   void updateDropdownItems(){
+    if (sourceDropdown == null){
+      return;
+    }
     List<String> itemNames = new ArrayList<String>();
     int selIndex = -2;
     itemNames.add("None");
@@ -351,29 +345,24 @@ class WindowControls {
       sourceDropdown.setValue(selIndex);
       sourceDropdown.getCaptionLabel().setText(itemNames.get(selIndex));
       if (selIndex >= 1){
-        System.out.println(String.format("%s selIndex=%d, value=%d", win.getId(), selIndex, (int)sourceDropdown.getValue()));
+        System.out.println(String.format("%s selIndex=%d, value=%d", winId, selIndex, (int)sourceDropdown.getValue()));
       }
     }
   }
 
-  
+
   void buildSourceDropdown(String name, Point pos){
-    //if (sourceDropdown != null){
-    //  cp5.remove(controlId);
-    //}
-    //HashMap<String,String> srcNames = new HashMap<String,String>();
     DropdownList dd = cp5.addDropdownList(name)
                          .setPosition(pos.x, pos.y);
 
     sourceDropdown = dd;
     updateDropdownItems();
     dd.close();
-    
+
     Map<String,Object> ddState = new HashMap<String,Object>();
     ddState.put("open", false);
     dd.addCallback(new CallbackListener(){
       public void controlEvent(CallbackEvent theEvent) {
-        //System.out.println(theEvent.getAction());
         boolean openState = (boolean)ddState.get("open");
         if (theEvent.getAction()==ControlP5.ACTION_CLICK) {
           if (!openState){
@@ -394,7 +383,7 @@ class WindowControls {
       }
     });
   }
-  
+
   Box getWidgetBox(Controller widget){
     float[] xy;
     float w, h;
@@ -404,28 +393,28 @@ class WindowControls {
     return new Box(xy[0], xy[1], w, h);
   }
 }
-  
 
-class FrameThread extends Thread {
-  Window win;
-  DevolayFrameType frameType;
-  Exception error;
-  FrameThread(Window _win){
-    win = _win;
-  }
-  public void run(){
-    DevolayFrameType ft;
-    win.frameReady = false;
-    win.gettingFrame = true;
-    try {
-      frameType = win.getFrame(5000);
-      win.frameReady = true;
-    } catch (Exception e) {
-      frameType = DevolayFrameType.NONE;
-      error = e;
-      throw(e);
-    } finally {
-      win.gettingFrame = false;
-    }
-  }
-}
+
+//class FrameThread extends Thread {
+//  Window win;
+//  DevolayFrameType frameType;
+//  Exception error;
+//  FrameThread(Window _win){
+//    win = _win;
+//  }
+//  public void run(){
+//    DevolayFrameType ft;
+//    win.frameReady = false;
+//    win.gettingFrame = true;
+//    try {
+//      frameType = win.getFrame(5000);
+//      win.frameReady = true;
+//    } catch (Exception e) {
+//      frameType = DevolayFrameType.NONE;
+//      error = e;
+//      throw(e);
+//    } finally {
+//      win.gettingFrame = false;
+//    }
+//  }
+//}

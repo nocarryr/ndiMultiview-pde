@@ -42,9 +42,11 @@ void setup(){
   Window win = windowGrid.addWindow("A", 0, 0, "");
   //win.ndiSourceName = "Foo";
   //win.setSourceName("BIRDDOG-1F8A1 (CAM)");
+  
   windowGrid.addWindow("B", 0, 1, "");
   windowGrid.addWindow("C", 1, 0, "");
   windowGrid.addWindow("D", 1, 1, "");
+  
   //updateNdiSources();
   System.out.println("setup complete");
 }
@@ -62,11 +64,12 @@ void draw(){
   windowGrid.render(dstCanvas);
   dstCanvas.endDraw();
   image(dstCanvas, 0, 0);
-  textFont(windowFont);
-  stroke(255);
-  fill(255);
-  textAlign(LEFT, BOTTOM);
-  text(String.format("%dfps, frame: %d", (int)frameRate, frameCount), 0, height / 2);
+  //textFont(windowFont);
+  //stroke(255);
+  //fill(255);
+  //textAlign(LEFT, BOTTOM);
+  //text(String.format("%dfps, frame: %d", (int)frameRate, frameCount), 0, height / 3);
+  
   //float numFrames = calcUpdateNumFrames();
   //int nextFrame = calcNextUpdateFrame();
   //stroke(255);

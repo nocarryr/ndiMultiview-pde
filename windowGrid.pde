@@ -1,9 +1,10 @@
 class WindowGrid {
   int cols, rows, outWidth, outHeight;
   Point padding;
+  Box boundingBox;
   HashMap<String,Window> windowMap;
   Window[][] windows;
-  HashMap<String,FrameThread> updateThreads;
+  //HashMap<String,FrameThread> updateThreads;
   
   WindowGrid(int _cols, int _rows, int _outWidth, int _outHeight) {
     cols = _cols;
@@ -26,8 +27,9 @@ class WindowGrid {
   }
   
   private void init(){
+    boundingBox = new Box(0, 0, outWidth, outHeight);
     windowMap = new HashMap<String,Window>();
-    updateThreads = new HashMap<String,FrameThread>();
+    //updateThreads = new HashMap<String,FrameThread>();
     windows = new Window[cols][rows];
   }
   
@@ -62,50 +64,37 @@ class WindowGrid {
   void setOutputSize(int w, int h){
     outWidth = w;
     outHeight = h;
+    boundingBox = new Box(0, 0, outWidth, outHeight);
     for (Window win : windowMap.values()){
       win.setBoundingBox(calcBox(win.col, win.row));
     }
   }
   
-  void scheduleFrames(){
-    for (Window win : windowMap.values()){
-      //if (win.gettingFrame){
-      //  continue;
-      //}
-      if (!win.isConnected()){
-        if (win.canConnect() && !win.connecting){
-          win.connectToSource();
-        }
-      } else if (!win.frameReady){
-        DevolayFrameType ft = win.getFrameNoWait();
-        if (win.frameReady && !win.canvasReady){
-          win.updateFrame();
-        }
-        //FrameThread t;
-        //if (!win.gettingFrame){
-        //  if (updateThreads.containsKey(win.getId())){
-        //    t = updateThreads.get(win.getId());
-        //    if (t.getState() != Thread.State.TERMINATED){
-        //      continue;
-        //    }
-        //    updateThreads.remove(win.getId());
-        //  }
-        //  t = new FrameThread(win);
-        //  updateThreads.put(win.getId(), t);
-        //  t.start();
-      }
-    }
-  }
-  
   void render(PGraphics canvas){
     try {
-      scheduleFrames();
+      //scheduleFrames();
       for (Window win : windowMap.values()){
-        if (win.frameReady && !win.canvasReady){
-          win.updateFrame();
+        if (!win.isConnected()){
+          if (win.canConnect() && !win.connecting){
+            win.connectToSource();
+          }
+        } else {
+          if (win.frameReady){
+            win.updateFrame();
+          } else {
+            win.getFrameNoWait();
+            if (win.frameReady){
+              win.updateFrame();
+            }
+          }
         }
         win.render(canvas);
       }
+      canvas.textFont(windowFont);
+      canvas.stroke(255);
+      canvas.fill(255);
+      canvas.textAlign(CENTER, BOTTOM);
+      canvas.text(String.format("%dfps", (int)frameRate), boundingBox.getHCenter(), boundingBox.getBottom());
     } catch(Exception e){
       close();
       e.printStackTrace();
