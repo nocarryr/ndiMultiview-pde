@@ -15,7 +15,9 @@ class Window {
   boolean connecting = false;
   boolean canvasReady = false;
   boolean clearImageOnNextFrame = false;
+  boolean maybeConnected = false;
   PImage srcImage;
+  TextBox nameLabel, formatLabel;
 
   DevolaySource ndiSource;
   DevolayReceiver ndiReceiver;
@@ -57,6 +59,12 @@ class Window {
 
   private void init(){
     frameBox = calcFrameBox();
+    nameLabel = new TextBox(frameBox.getTopLeft(), 100, 18);
+    //nameLabel.text = name;
+    formatLabel = new TextBox(frameBox.getTopLeft(), 100, 18);
+    nameLabel.setBottomCenter(frameBox.getBottomCenter());
+    //System.out.println(String.format("frame.bottomCenter = %s, nameLabel.bottomCenter = %s", frameBox.getBottomCenter().toStr(), nameLabel.getBottomCenter().toStr()));
+    formatLabel.setTopCenter(frameBox.getTopCenter());
     System.out.println(String.format("%s bBox: %s, frame: %s", getId(), boundingBox.toStr(), frameBox.toStr()));
     lastFrameType = DevolayFrameType.NONE;
     srcWidth = 1920;
@@ -76,12 +84,22 @@ class Window {
   void setBoundingBox(Box _boundingBox){
     boundingBox = _boundingBox;
     frameBox = calcFrameBox();
+    nameLabel.setBottomCenter(frameBox.getBottomCenter());
+    System.out.println(String.format("frame.bottomCenter = %s, nameLabel.bottomCenter = %s", frameBox.getBottomCenter().toStr(), nameLabel.getBottomCenter().toStr()));
+    formatLabel.setTopCenter(frameBox.getTopCenter());
+    
+    //formatLabel.setHCenter(frameBox.getHCenter());
+    //formatLabel.setY(frameBox.getY());
     controls.initControls();
   }
 
   String getId(){
     return String.format("%02d-%02d", col, row);
   }
+  
+  //void setName(String _name){
+  //  name = _name;
+  //}
 
   void setSourceName(String srcName){
     setSourceName(srcName, true);
@@ -126,6 +144,7 @@ class Window {
       videoFrame = new DevolayVideoFrame();
       audioFrame = new DevolayAudioFrame();
       metadataFrame = new DevolayMetadataFrame();
+      maybeConnected = true;
     } catch (Exception e){
       clearImageOnNextFrame = true;
       throw(e);
@@ -160,18 +179,23 @@ class Window {
     numDraws = 0;
     droppedFrames = 0;
     clearImageOnNextFrame = true;
+    maybeConnected = false;
   }
 
   boolean isConnected(){
      if (ndiSource == null){
+       maybeConnected = false;
        return false;
      }
      if (ndiReceiver == null){
+       maybeConnected = false;
        return false;
      }
      if (ndiReceiver.getConnectionCount() == 0){
+       maybeConnected = false;
        return false;
      }
+     maybeConnected = true;
      return true;
   }
 
@@ -201,7 +225,7 @@ class Window {
       long _totalFrames = performanceData.getTotalVideoFrames();
       if (_droppedFrames != droppedFrames){
         droppedFrames = _droppedFrames;
-        System.out.println(String.format("Dropped Video: %d / %d", droppedFrames, _totalFrames));
+        System.out.println(String.format("'%s' Dropped Video: %d / %d", getId(), droppedFrames, _totalFrames));
         
       }
     }
@@ -277,17 +301,24 @@ class Window {
       }
       srcImage.updatePixels();
       clearImageOnNextFrame = false;
+      canvas.image(srcImage, frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
+    } else if (maybeConnected){
+      canvas.image(srcImage, frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
     }
-    canvas.image(srcImage, frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
     canvasReady = false;
-    canvas.textFont(windowFont);
-    canvas.stroke(255);
-    canvas.fill(255);
-    canvas.textAlign(CENTER, TOP);
-    canvas.text(name, frameBox.getHCenter(), frameBox.pos.y);
-    String imgString = String.format("%dx%d", srcWidth, srcHeight);
-    canvas.textAlign(RIGHT, TOP);
-    canvas.text(imgString, frameBox.getRight(), frameBox.pos.y);
+    nameLabel.text = name;
+    nameLabel.render(canvas);
+    formatLabel.text = String.format("%dx%d", srcWidth, srcHeight);
+    formatLabel.render(canvas);
+    //canvas.textFont(windowFont);
+    //canvas.stroke(255);
+    //canvas.fill(255);
+    //canvas.textAlign(CENTER, TOP);
+    //canvas.text(name, frameBox.getHCenter(), frameBox.pos.y);
+    //String imgString = String.format("%dx%d", srcWidth, srcHeight);
+    //canvas.textAlign(RIGHT, TOP);
+    //canvas.text(imgString, frameBox.getRight(), frameBox.pos.y);
+    
     //if (videoFrame != null){
     //  canvas.textAlign(CENTER, BOTTOM);
     //  canvas.text(timecodeStr(videoFrame.getTimecode()), frameBox.getHCenter(), frameBox.getBottom());

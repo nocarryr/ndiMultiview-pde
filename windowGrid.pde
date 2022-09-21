@@ -4,6 +4,7 @@ class WindowGrid {
   Box boundingBox;
   HashMap<String,Window> windowMap;
   Window[][] windows;
+  TextBox fpsText;
   //HashMap<String,FrameThread> updateThreads;
   
   WindowGrid(int _cols, int _rows, int _outWidth, int _outHeight) {
@@ -28,6 +29,8 @@ class WindowGrid {
   
   private void init(){
     boundingBox = new Box(0, 0, outWidth, outHeight);
+    fpsText = new TextBox(boundingBox.getBottomCenter(), 100, 16);
+    fpsText.bgColor = 0xff404040;
     windowMap = new HashMap<String,Window>();
     //updateThreads = new HashMap<String,FrameThread>();
     windows = new Window[cols][rows];
@@ -65,6 +68,8 @@ class WindowGrid {
     outWidth = w;
     outHeight = h;
     boundingBox = new Box(0, 0, outWidth, outHeight);
+    System.out.println("windowGrid bBox: "+boundingBox.toStr());
+    fpsText.setBottomCenter(boundingBox.getBottomCenter());
     for (Window win : windowMap.values()){
       win.setBoundingBox(calcBox(win.col, win.row));
     }
@@ -90,11 +95,23 @@ class WindowGrid {
         }
         win.render(canvas);
       }
-      canvas.textFont(windowFont);
-      canvas.stroke(255);
-      canvas.fill(255);
-      canvas.textAlign(CENTER, BOTTOM);
-      canvas.text(String.format("%dfps", (int)frameRate), boundingBox.getHCenter(), boundingBox.getBottom());
+      fpsText.text = String.format("%dfps", (int)frameRate);
+      fpsText.render(canvas);
+      
+      ////Box txtBox = new Box(boundingBox.getBottomCenter(), new Point(100, 16));
+      //Box txtBox = new Box(0, 0, 100, 16);
+      //txtBox.setHCenter(boundingBox.getHCenter());
+      //txtBox.setBottom(boundingBox.getBottom());
+      ////System.out.println(txtBox.toStr());
+      //Alignment align = new Alignment(AlignmentType.CENTER | AlignmentType.BOTTOM);
+      ////System.out.println(String.format("align: intValue=%d, name=%s", align.intValue, align.name));
+      
+      //drawText(canvas, txt, align, txtBox, boundingBox.getBottomCenter(), 80, 255); 
+      ////canvas.textFont(windowFont);
+      ////canvas.stroke(255);
+      ////canvas.fill(255);
+      ////canvas.textAlign(CENTER, BOTTOM);
+      ////canvas.text(String.format("%dfps", (int)frameRate), boundingBox.getHCenter(), boundingBox.getBottom());
     } catch(Exception e){
       close();
       e.printStackTrace();

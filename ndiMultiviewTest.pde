@@ -3,6 +3,7 @@ import java.nio.ByteBuffer;
 import me.walkerknapp.devolay.*;
 import controlP5.*;
 
+
 WindowGrid windowGrid;
 PFont windowFont;
 DevolayFinder ndiFinder;
@@ -36,7 +37,7 @@ void setup(){
   
   System.out.println("Creating WindowGrid...");
   windowGrid = new WindowGrid(2, 2, 0, 0);
-  size(640, 360);
+  size(800, 450);
   dstCanvas = createGraphics(width, height);
   windowGrid.setOutputSize(width, height);
   Window win = windowGrid.addWindow("A", 0, 0, "");
@@ -50,6 +51,7 @@ void setup(){
   //updateNdiSources();
   System.out.println("setup complete");
 }
+
 
 void draw(){
   updateNdiSources();
