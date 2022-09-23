@@ -13,18 +13,30 @@ class WindowGrid {
     padding = new Point(2, 2);
     outWidth = _outWidth;
     outHeight = _outHeight;
+    buildDefaultWindows();
     init();
   }
   
   WindowGrid(JSONObject json, int _outWidth, int _outHeight){
     cols = json.getInt("cols");
     rows = json.getInt("rows");
-    padding = new Point(0, 0);
-    padding.x = json.getFloat("xPadding");
-    padding.y = json.getFloat("yPadding");
+    padding = new Point(json.getJSONObject("padding"));
     outWidth = _outWidth;
     outHeight = _outHeight;
     init();
+    JSONArray winJson = json.getJSONArray("windows");
+    for (int i=0; i<winJson.size(); i++){
+      addWindow(winJson.getJSONObject(i));
+    }
+  }
+  
+  private void buildDefaultWindows(){
+    int i = 0;
+    for (int x=0; x < cols; x++){
+      for (int y=0; y < rows; y++){
+        addWindow(String.format("%d", i), x, y, "");
+      }
+    }
   }
   
   private void init(){
@@ -34,6 +46,19 @@ class WindowGrid {
     windowMap = new HashMap<String,Window>();
     //updateThreads = new HashMap<String,FrameThread>();
     windows = new Window[cols][rows];
+  }
+  
+  JSONObject serialize(){
+    JSONObject json = new JSONObject();
+    json.setInt("cols", cols);
+    json.setInt("rows", rows);
+    json.setJSONObject("padding", padding.serialize());
+    JSONArray winJson = new JSONArray();
+    for (Window win : windowMap.values()){
+      winJson.append(win.serialize());
+    }
+    json.setJSONArray("windows", winJson);
+    return json;
   }
   
   void updateNdiSources(){
@@ -51,14 +76,30 @@ class WindowGrid {
   }
   
   Box calcBox(int col, int row){
+    //if (outWidth == 0 || outHeight == 0){
+    //  return new Box(0, 0, 0, 0);
+    //}
     float w = outWidth / rows;
     float h = outHeight / cols;
     return new Box(w * row, h * col, w, h);
   }
   
   Window addWindow(String name, int col, int row, String ndiSourceName){
+    String winId = String.format("%02d-%02d", col, row);
+    assert !windowMap.containsKey(winId);
     Box winBox = calcBox(col, row);
     Window win = new Window(name, col, row, winBox, padding, ndiSourceName);
+    windows[col][row] = win;
+    windowMap.put(win.getId(), win);
+    return win;
+  }
+  
+  Window addWindow(JSONObject json){
+    int col = json.getInt("col"), row = json.getInt("row");
+    String winId = String.format("%02d-%02d", col, row);
+    assert !windowMap.containsKey(winId);
+    Box winBox = calcBox(col, row);
+    Window win = new Window(json, winBox, padding);
     windows[col][row] = win;
     windowMap.put(win.getId(), win);
     return win;
@@ -73,6 +114,7 @@ class WindowGrid {
     for (Window win : windowMap.values()){
       win.setBoundingBox(calcBox(win.col, win.row));
     }
+    
   }
   
   void render(PGraphics canvas){

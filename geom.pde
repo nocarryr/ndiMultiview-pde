@@ -5,8 +5,25 @@ class Point {
     y = _y;
   }
   
+  Point(JSONObject json){
+    x = json.getFloat("x");
+    y = json.getFloat("y");
+  }
+  
+  JSONObject serialize(){
+    JSONObject json = new JSONObject();
+    json.setFloat("x", x);
+    json.setFloat("y", y);
+    return json;
+  }
+  
   Point copy(){
     return new Point(x, y);
+  }
+  
+  void add(Point other){
+    x += other.x;
+    y += other.y;
   }
    
   String toStr(){
@@ -41,9 +58,25 @@ class Box {
     size = _b.getSize();
     //updateGeometry();
   }
+  Box(JSONObject json){
+    pos = new Point(json.getJSONObject("pos"));
+    size = new Point(json.getJSONObject("size"));
+  }
+  
+  JSONObject serialize(){
+    JSONObject json = new JSONObject();
+    json.setJSONObject("pos", pos.serialize());
+    json.setJSONObject("size", size.serialize());
+    return json;
+  }
   
   Box copy(){
     return new Box(this);
+  }
+  
+  void move(Point dxy){
+    pos.add(dxy);
+    //setPos(pos.add(dxy));
   }
   
   Point getPos(){
@@ -175,6 +208,10 @@ class Box {
   
   Point getBottomRight(){
     return new Point(getRight(), getBottom());
+  }
+  
+  float getTotalArea(){
+    return getWidth() * getHeight();
   }
   
   void updateGeometry(){ }

@@ -56,6 +56,15 @@ class Window {
     ndiSourceName = json.getString("ndiSourceName");
     init();
   }
+  
+  JSONObject serialize(){
+    JSONObject json = new JSONObject();
+    json.setInt("col", col);
+    json.setInt("row", row);
+    json.setString("name", name);
+    json.setString("ndiSourceName", ndiSourceName);
+    return json;
+  }
 
   private void init(){
     frameBox = calcFrameBox();
@@ -73,6 +82,10 @@ class Window {
 
     //connectToSource();
     controls = new WindowControls(this);
+    //if (boundingBox.getTotalArea() > 0){
+    //  controls.initControls();
+    //}
+    
   }
 
   Box calcFrameBox(){
@@ -90,16 +103,33 @@ class Window {
     
     //formatLabel.setHCenter(frameBox.getHCenter());
     //formatLabel.setY(frameBox.getY());
-    controls.initControls();
+    //if (boundingBox.getWidth() > 0 && boundingBox.getHeight() > 0){
+    //  controls = new WindowControls(this);
+    //}
+    //if (boundingBox.getTotalArea() > 0){
+    //  controls.initControls();
+    //}
   }
 
   String getId(){
     return String.format("%02d-%02d", col, row);
   }
   
-  //void setName(String _name){
-  //  name = _name;
-  //}
+  void setName(String _name){
+    setName(_name, true);
+  }
+  
+  void setName(String _name, boolean updateControls){
+    System.out.println("setName: '" + _name + "'");
+    if (_name == name){
+      return;
+    }
+    name = _name;
+    saveConfig();
+    if (updateControls){
+      controls.updateFieldValues();
+    }
+  }
 
   void setSourceName(String srcName){
     setSourceName(srcName, true);
@@ -110,6 +140,7 @@ class Window {
       return;
     }
     ndiSourceName = srcName;
+    saveConfig();
     System.out.println(getId()+" ndiSourceName: '"+srcName+"'");
     connectToSource();
     if (updateControls){
@@ -119,7 +150,7 @@ class Window {
   }
 
   void updateNdiSources(){
-    controls.updateDropdownItems();
+    controls.updateFieldValues();
   }
 
   void connectToSource(){
@@ -219,15 +250,17 @@ class Window {
       frameReady = true;
       numFrames += 1;
     }
-    try (DevolayPerformanceData performanceData = new DevolayPerformanceData()) {
+    DevolayPerformanceData performanceData = new DevolayPerformanceData();
+    try {
       ndiReceiver.queryPerformance(performanceData);
       long _droppedFrames = performanceData.getDroppedVideoFrames();
       long _totalFrames = performanceData.getTotalVideoFrames();
       if (_droppedFrames != droppedFrames){
         droppedFrames = _droppedFrames;
         System.out.println(String.format("'%s' Dropped Video: %d / %d", getId(), droppedFrames, _totalFrames));
-        
       }
+    } finally {
+      performanceData.close();
     }
     return frameType;
   }
@@ -329,7 +362,12 @@ class Window {
 class WindowControls {
   Window win;
   String winId;
+  boolean controlsCreated = false;
   DropdownList sourceDropdown;
+  Button editNameBtn;
+  boolean editNameEnabled = false;
+  Textfield editNameField;
+  
   WindowControls(Window _win){
     win = _win;
     winId = _win.getId();
@@ -337,20 +375,77 @@ class WindowControls {
   }
 
   void initControls(){
+    //boolean create = false;
+    //if (!controlsCreated && win.boundingBox.getWidth() > 0 && win.boundingBox.getHeight() > 0){
+    //  create = true;
+    //}
+    //initControls(create);
     initControls(false);
   }
   
   void initControls(boolean create){
-    if (sourceDropdown == null && !create){
+    if (!controlsCreated && !create){
       return;
     }
     System.out.println("initControls: win.getId = '" + win.getId() + "', myId='" + winId + "'");
     String dropdownId = winId + "-dropdown";
-    Point ddPos = new Point(win.frameBox.pos.x, win.frameBox.pos.y);
+    Point ddPos = win.frameBox.getPos();//win.frameBox.getHCenter(), win.frameBox.pos.y);
     if (sourceDropdown == null){
       buildSourceDropdown(dropdownId, ddPos);
+    }
+    //setWidgetPos(sourceDropdown, ddPos);
+    //sourceDropdown.setPosition(ddPos.x, ddPos.y);
+    
+    String editNameBtnId = winId + "-editNameBtn";
+    String editNameFieldId = winId + "-editNameField";
+    Box editNameBtnBox = new Box(win.nameLabel);
+    //Box editNameBtnBox = new Box(0, 0, win.nameLabel.getSize());
+    //editNameBtnBox.setCenter(win.frameBox.getCenter());
+    editNameBtnBox.setX(win.nameLabel.getRight() + 8);
+    Box editNameFieldBox = new Box(win.nameLabel);
+    editNameFieldBox.setRight(win.nameLabel.getX() - 8);
+    if (editNameBtn == null){
+      buildEditNameControls(editNameBtnId, editNameBtnBox, editNameFieldId, editNameFieldBox);
     } else {
-      sourceDropdown.setPosition(ddPos.x, ddPos.y);
+      if (!editNameEnabled){
+        editNameField.setText(win.name);
+      }
+    }
+    //setWidgetPos(editNameBtn, editNameBtnBox);
+    //setWidgetPos(editNameField, editNameFieldBox);
+    controlsCreated = true;
+  }
+  
+  Controller setWidgetPos(Controller widget, Point pos){
+    widget.setPosition(pos.x, pos.y);
+    return widget;
+  }
+  
+  Controller setWidgetPos(Controller widget, Box b){
+    return setWidgetPos(widget, b.getPos());
+  }
+  
+  Controller setWidgetSize(Controller widget, Point size){
+    widget.setSize((int)size.x, (int)size.y);
+    return widget;
+  }
+  
+  Controller setWidgetSize(Controller widget, Box b){
+    return setWidgetSize(widget, b.getSize());
+  }
+  
+  Controller setWidgetBox(Controller widget, Box b){
+    setWidgetPos(widget, b);
+    setWidgetSize(widget, b);
+    return widget;
+  }
+  
+  void updateFieldValues(){
+    if (controlsCreated){
+      updateDropdownItems();
+      if (!editNameEnabled){
+        editNameField.setText(win.name);
+      }
     }
   }
 
@@ -368,7 +463,9 @@ class WindowControls {
         selIndex = i+1;
       }
     }
-    if (selIndex == -2 && win.ndiSourceName != ""){
+    if (win.ndiSourceName != "" && !itemNames.contains(win.ndiSourceName)){
+    //if (selIndex == -2 && win.ndiSourceName != ""){
+      selIndex = itemNames.size();
       itemNames.add(win.ndiSourceName);
     }
     sourceDropdown.setItems(itemNames);
@@ -383,36 +480,61 @@ class WindowControls {
 
 
   void buildSourceDropdown(String name, Point pos){
-    DropdownList dd = cp5.addDropdownList(name)
-                         .setPosition(pos.x, pos.y);
-
-    sourceDropdown = dd;
+    sourceDropdown = cp5.addDropdownList(name)
+                        .setOpen(false)
+                        .plugTo(this, "onSourceDropdown");
+    setWidgetPos(sourceDropdown, pos);
     updateDropdownItems();
-    dd.close();
-
-    Map<String,Object> ddState = new HashMap<String,Object>();
-    ddState.put("open", false);
-    dd.addCallback(new CallbackListener(){
-      public void controlEvent(CallbackEvent theEvent) {
-        boolean openState = (boolean)ddState.get("open");
-        if (theEvent.getAction()==ControlP5.ACTION_CLICK) {
-          if (!openState){
-            ddState.put("open", true);
-            return;
-          }
-          int idx = (int)dd.getValue();
-          Map<String,Object> item = dd.getItem(idx);
-          String srcName = (String)item.get("name");
-          if (srcName == "None"){
-            srcName = "";
-          }
-          System.out.println(String.format("idx=%d, srcName=%s", idx, srcName));
-          win.setSourceName(srcName, false);
-          dd.close();
-          ddState.put("open", false);
-        }
+  }
+  
+  void buildEditNameControls(String btnId, Box btnBox, String txtFieldId, Box txtBox){
+    editNameBtn = cp5.addButton(btnId)
+                     .setLabel("Edit Name")
+                     .setValue(1)
+                     .setSwitch(true)
+                     .plugTo(this, "onEditNameBtn");
+    setWidgetBox(editNameBtn, btnBox);
+    
+    editNameField = cp5.addTextfield(txtFieldId)
+                       .setText(win.name)
+                       .setVisible(false)
+                       .setAutoClear(false)
+                       .plugTo(this, "onEditNameField");
+    setWidgetBox(editNameField, txtBox);
+  }
+  
+  void onSourceDropdown(int idx){
+    if (sourceDropdown.isOpen()){
+      Map<String,Object> item = sourceDropdown.getItem(idx);
+      String srcName = (String)item.get("name");
+      if (srcName == "None"){
+        srcName = "";
       }
-    });
+      System.out.println(String.format("idx=%d, srcName=%s", idx, srcName));
+      win.setSourceName(srcName, false);
+      sourceDropdown.close();
+    }
+  }
+  
+  void onEditNameBtn(boolean btnOn){
+    if (editNameEnabled != btnOn){
+      editNameEnabled = btnOn;
+      System.out.println(String.format("editNameEnabled = %s", editNameEnabled));
+      editNameField.setVisible(editNameEnabled);
+      if (editNameEnabled){
+        editNameField.setFocus(true);
+      }
+    }
+  }
+  
+  void onEditNameField(String txtValue){
+    if (editNameField.isVisible() && editNameEnabled){
+        win.setName(txtValue, false);
+        editNameField.setFocus(false);
+        editNameEnabled = false;
+        editNameBtn.setOff();
+        editNameField.setVisible(false);
+    }
   }
 
   Box getWidgetBox(Controller widget){

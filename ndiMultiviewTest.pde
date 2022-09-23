@@ -1,8 +1,20 @@
-import java.util.Map;
+//import java.util.Map;
+import java.awt.Frame;
+import java.awt.Shape;
+import java.awt.Rectangle;
+import processing.awt.*;
+import processing.awt.ShimAWT;
 import java.nio.ByteBuffer;
+import java.io.File;
 import me.walkerknapp.devolay.*;
 import controlP5.*;
 
+
+boolean isFullScreen = false;
+int fullScreenDisplay = 0;
+int confSaveInterval = 60;
+int lastConfSaveFrame = -1;
+int nextConfSaveFrame = -1;
 
 WindowGrid windowGrid;
 PFont windowFont;
@@ -17,7 +29,41 @@ HashMap<String,DevolaySource> ndiSources;
 StringList fakeSourceArray;
 HashMap<String,String> fakeSources;
 PGraphics dstCanvas;
+Box windowBounds;
 ControlP5 cp5;
+
+//public void controlEvent(ControlEvent theEvent){
+//  println(theEvent.toString());
+//}
+
+JSONObject loadConfig(){
+  //return new JSONObject();
+  File confFile = getConfigFile();
+  System.out.println("loadConfig: " + confFile.getPath());
+  if (!confFile.exists()){
+    return new JSONObject();
+  }
+  return loadJSONObject(confFile.getPath());
+}
+
+void saveConfig(JSONObject json){
+  File confFile = getConfigFile();
+  System.out.println("saveConfig: " + confFile.getAbsolutePath());
+  saveJSONObject(json, confFile.getPath());
+}
+
+void saveConfig(){
+  JSONObject json = new JSONObject();
+  if (windowBounds != null){
+    json.setJSONObject("windowBounds", windowBounds.serialize());
+  }
+  Point canvasSize = new Point(width, height);
+  json.setJSONObject("canvasSize", canvasSize.serialize());
+  json.setBoolean("isFullScreen", isFullScreen);
+  json.setInt("fullScreenDisplay", fullScreenDisplay);
+  json.setJSONObject("windowGrid", windowGrid.serialize());
+  saveConfig(json);
+}
 
 void setup(){
   cp5 = new ControlP5(this);
@@ -35,23 +81,46 @@ void setup(){
   Devolay.loadLibraries();
   ndiFinder = new DevolayFinder();
   
+  JSONObject confData = loadConfig();
   System.out.println("Creating WindowGrid...");
-  windowGrid = new WindowGrid(2, 2, 0, 0);
+  //if (!confData.isNull("isFullScreen")){
+  //  isFullScreen = confData.getBoolean("isFullScreen");
+  //}
+  //if (isFullScreen){
+  //  fullScreenDisplay = confData.getInt("fullScreenDisplay");
+  //  fullScreen(fullScreenDisplay);
+  //} else {
+  //  //surface.setResizable(true);
+  //  if (confData.isNull("windowBounds")){
+  //    //size(800, 450);
+  //    surface.setSize(800, 450);
+  //  } else {
+  //    surface.setSize(800, 450);
+  //    //Box bBox = new Box(confData.getJSONObject("windowBounds"));
+  //    //surface.setLocation((int)bBox.getX(), (int)bBox.getY());
+  //    //surface.setSize((int)bBox.getWidth(), (int)bBox.getHeight());
+  //  }
+  //}
+  //cp5.setGraphics(this, 0, 0);
+  
   size(800, 450);
   dstCanvas = createGraphics(width, height);
-  windowGrid.setOutputSize(width, height);
-  Window win = windowGrid.addWindow("A", 0, 0, "");
-  //win.ndiSourceName = "Foo";
-  //win.setSourceName("BIRDDOG-1F8A1 (CAM)");
   
-  windowGrid.addWindow("B", 0, 1, "");
-  windowGrid.addWindow("C", 1, 0, "");
-  windowGrid.addWindow("D", 1, 1, "");
-  
-  //updateNdiSources();
+  if (confData.isNull("windowGrid")){
+    windowGrid = new WindowGrid(2, 2, width, height);
+  } else {
+    windowGrid = new WindowGrid(confData.getJSONObject("windowGrid"), width, height);
+  }
+  //windowGrid.setOutputSize(width, height);
   System.out.println("setup complete");
 }
 
+Box getWindowDims(){
+  PSurfaceAWT.SmoothCanvas nativeWin = (PSurfaceAWT.SmoothCanvas)surface.getNative();
+  java.awt.Rectangle bBox = nativeWin.getFrame().getBounds();
+  Box b = new Box(bBox.x, bBox.y, bBox.width, bBox.height);
+  return b;
+}
 
 void draw(){
   updateNdiSources();
@@ -60,6 +129,7 @@ void draw(){
     windowGrid.close();
     return;
   }
+  
   background(0);
   dstCanvas.beginDraw();
   dstCanvas.background(0);
@@ -79,23 +149,49 @@ void draw(){
   //textAlign(RIGHT, BOTTOM);
   //text(String.format("nFrames: %d, prev: %d, next: %d", (int)numFrames, lastSourceUpdateFrame, nextFrame), width, height / 2);
   loopInitial = false;
+  confAutoSave();
 }
 
+void confAutoSave(){
+  if (nextConfSaveFrame == -1 || frameCount >= nextConfSaveFrame){
+    windowBounds = getWindowDims();
+    System.out.println("autosave config");
+    saveConfig();
+    lastConfSaveFrame = frameCount;
+    nextConfSaveFrame = frameCount + secondsToFrame(confSaveInterval);
+  }
+}
 
-float calcUpdateNumFrames(){
+int secondsToFrame(float sec){
   float fr = frameRate;
   if (fr == 0){
     fr = 1;
   }
-  //return sourceUpdateTimeInterval / fr;
-  //return fr / sourceUpdateTimeInterval;
-  return fr * sourceUpdateTimeInterval;
+  return (int)(fr * sec);
 }
 
-int calcNextUpdateFrame(){
-  float numFrames = calcUpdateNumFrames();
-  return lastSourceUpdateFrame + (int)numFrames;
+float frameToSeconds(int f){
+  float fr = frameRate;
+  if (fr == 0){
+    fr = 1;
+  }
+  return f / fr;
 }
+
+//float calcUpdateNumFrames(){
+//  float fr = frameRate;
+//  if (fr == 0){
+//    fr = 1;
+//  }
+//  //return sourceUpdateTimeInterval / fr;
+//  //return fr / sourceUpdateTimeInterval;
+//  return fr * sourceUpdateTimeInterval;
+//}
+
+//int calcNextUpdateFrame(){
+//  int numFrames = secondsToFrame(sourceUpdateTimeInterval);
+//  return lastSourceUpdateFrame + numFrames;
+//}
 
 void updateNdiSources(){
   if (sourcesUpdated){
@@ -114,7 +210,9 @@ void updateNdiSources(){
   //}
   //float numFrames = sourceUpdateTimeInterval / fr;
   //int nextFrame = lastSourceUpdateFrame + (int)numFrames;
-  int nextFrame = calcNextUpdateFrame();
+  //int nextFrame = calcNextUpdateFrame();
+  int numFrames = secondsToFrame(sourceUpdateTimeInterval);
+  int nextFrame = frameCount + numFrames;
   if (loopInitial || frameCount >= nextFrame){
     updatingSources = true;
     thread("_updateNDISources");
