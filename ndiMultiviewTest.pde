@@ -237,7 +237,7 @@ public class MultiviewApplet extends PApplet {
   }
   
   public void setup(){
-    //this.surface.setResizable(true);
+    this.surface.setResizable(true);
     cp5 = new ControlP5(this);
     Box btnBox = new Box(0, 0, 40, 20);
     btnBox.setRight(width);
@@ -266,7 +266,7 @@ public class MultiviewApplet extends PApplet {
     windowGrid = new WindowGrid(config.windowGrid);
   }
   public void draw() {
-    //checkResize();
+    checkResize();
     updateNdiSources();
     if (this.exitCalled){
       System.out.println("Closing resources");
@@ -274,40 +274,41 @@ public class MultiviewApplet extends PApplet {
       return;
     }
     
-    ////background(0);
-    ////PGraphics cv = getGraphics();
-    ////cv.beginDraw();
-    //g.background(0);
-    //windowGrid.render(g);
-    ////cv.endDraw();
-    ////image(dstCanvas, 0, 0, this.width, this.height);
-    
-    background(0);
+    //background(0);
     //PGraphics cv = getGraphics();
-    dstCanvas.beginDraw();
-    dstCanvas.background(0);
-    windowGrid.render(dstCanvas);
-    dstCanvas.endDraw();
-    image(dstCanvas, 0, 0, this.width, this.height);
-    loopInitial = false;
-    confAutoSave();
+    //cv.beginDraw();
+    g.background(0);
+    windowGrid.render(g);
+    //cv.endDraw();
+    //image(dstCanvas, 0, 0, this.width, this.height);
+    
+    //background(0);
+    ////PGraphics cv = getGraphics();
+    //dstCanvas.beginDraw();
+    //dstCanvas.background(0);
+    //windowGrid.render(dstCanvas);
+    //dstCanvas.endDraw();
+    //image(dstCanvas, 0, 0, this.width, this.height);
+    //loopInitial = false;
+    //confAutoSave();
   }
   
-  //void checkResize(){
-  //  //int frInterval = secondsToFrame(resizeCheckInterval);
-  //  if ((int)frameCount % 20 != 0){
-  //    return;
-  //  }
-  //  //if (this.mousePressed){// && (mouseButton == LEFT)){
-  //  //  return;
-  //  //}
-  //  if (this.width != dstCanvas.width || this.height != dstCanvas.height){
-  //    println("resize canvas");
-  //    //dstCanvas = createGraphics(this.width, this.height);
-  //    //windowGrid.setOutputSize((int)this.width, (int)this.height);
-  //    //dstCanvas.resize(this.width, this.height);
-  //  }
-  //}
+  void checkResize(){
+    //int frInterval = secondsToFrame(resizeCheckInterval);
+    if ((int)frameCount % 20 != 0){
+      return;
+    }
+    //if (this.mousePressed){// && (mouseButton == LEFT)){
+    //  return;
+    //}
+    if ((int)this.width != windowGrid.outWidth || (int)this.height != windowGrid.outHeight){
+      println("resize canvas");
+      //dstCanvas = createGraphics(this.width, this.height);
+      windowGrid.setOutputSize((int)this.width, (int)this.height);
+      saveConfig();
+      //dstCanvas.resize(this.width, this.height);
+    }
+  }
 
   void saveConfig(JSONObject json){
     File confFile = getConfigFile();
