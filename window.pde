@@ -57,6 +57,16 @@ class Window {
     init();
   }
   
+  Window(WindowConfig config, Box _boundingBox, Point _padding){
+    name = config.name;
+    col = config.col;
+    row = config.row;
+    padding = _padding;
+    boundingBox = _boundingBox;
+    ndiSourceName = config.ndiSourceName;
+    init();
+  }
+  
   JSONObject serialize(){
     JSONObject json = new JSONObject();
     json.setInt("col", col);

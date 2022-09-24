@@ -1,5 +1,6 @@
 class WindowGrid {
   int cols, rows, outWidth, outHeight;
+  Point outputSize;
   Point padding;
   Box boundingBox;
   HashMap<String,Window> windowMap;
@@ -13,6 +14,7 @@ class WindowGrid {
     padding = new Point(2, 2);
     outWidth = _outWidth;
     outHeight = _outHeight;
+    outputSize = new Point(outWidth, outHeight);
     buildDefaultWindows();
     init();
   }
@@ -23,10 +25,24 @@ class WindowGrid {
     padding = new Point(json.getJSONObject("padding"));
     outWidth = _outWidth;
     outHeight = _outHeight;
+    outputSize = new Point(outWidth, outHeight);
     init();
     JSONArray winJson = json.getJSONArray("windows");
     for (int i=0; i<winJson.size(); i++){
       addWindow(winJson.getJSONObject(i));
+    }
+  }
+  
+  WindowGrid(GridConfig config){
+    cols = config.cols;
+    rows = config.rows;
+    padding = config.padding;
+    outputSize = config.outputSize.copy();
+    outWidth = (int)outputSize.x;
+    outHeight = (int)outputSize.y;
+    init();
+    for (int i=0; i<config.windows.length; i++){
+      addWindow(config.windows[i]);
     }
   }
   
@@ -53,6 +69,7 @@ class WindowGrid {
     json.setInt("cols", cols);
     json.setInt("rows", rows);
     json.setJSONObject("padding", padding.serialize());
+    json.setJSONObject("outputSize", outputSize.serialize());
     JSONArray winJson = new JSONArray();
     for (Window win : windowMap.values()){
       winJson.append(win.serialize());
@@ -105,9 +122,22 @@ class WindowGrid {
     return win;
   }
   
+  Window addWindow(WindowConfig config){
+    int col = config.col, row = config.row;
+    String winId = String.format("%02d-%02d", col, row);
+    assert !windowMap.containsKey(winId);
+    Box winBox = calcBox(col, row);
+    Window win = new Window(config, winBox, padding);
+    windows[col][row] = win;
+    windowMap.put(win.getId(), win);
+    return win;
+  }
+  
   void setOutputSize(int w, int h){
     outWidth = w;
     outHeight = h;
+    outputSize.x = w;
+    outputSize.y = h;
     boundingBox = new Box(0, 0, outWidth, outHeight);
     System.out.println("windowGrid bBox: "+boundingBox.toStr());
     fpsText.setBottomCenter(boundingBox.getBottomCenter());

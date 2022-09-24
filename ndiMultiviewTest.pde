@@ -9,7 +9,6 @@ import java.io.File;
 import me.walkerknapp.devolay.*;
 import controlP5.*;
 
-
 boolean isFullScreen = false;
 int fullScreenDisplay = 0;
 int confSaveInterval = 60;
@@ -26,8 +25,6 @@ boolean loopInitial = true;
 int lastSourceUpdateFrame = 0;
 float sourceUpdateTimeInterval = 60;
 HashMap<String,DevolaySource> ndiSources;
-StringList fakeSourceArray;
-HashMap<String,String> fakeSources;
 PGraphics dstCanvas;
 Box windowBounds;
 ControlP5 cp5;
@@ -44,6 +41,20 @@ JSONObject loadConfig(){
     return new JSONObject();
   }
   return loadJSONObject(confFile.getPath());
+  //JSONObject json = loadJSONObject(confFile.getPath());
+  //Config config = new Config(json);
+}
+
+Config getConfig(){
+  //return new JSONObject();
+  File confFile = getConfigFile();
+  System.out.println("loadConfig: " + confFile.getPath());
+  if (!confFile.exists()){
+    return new Config();
+  }
+  //return loadJSONObject(confFile.getPath());
+  JSONObject json = loadJSONObject(confFile.getPath());
+  return new Config(json);
 }
 
 void saveConfig(JSONObject json){
@@ -53,35 +64,37 @@ void saveConfig(JSONObject json){
 }
 
 void saveConfig(){
-  JSONObject json = new JSONObject();
-  if (windowBounds != null){
-    json.setJSONObject("windowBounds", windowBounds.serialize());
+  //JSONObject json = new JSONObject();
+  //if (windowBounds != null){
+  //  json.setJSONObject("windowBounds", windowBounds.serialize());
+  //}
+  //Point canvasSize = new Point(width, height);
+  //json.setJSONObject("canvasSize", canvasSize.serialize());
+  //json.setBoolean("isFullScreen", isFullScreen);
+  //json.setInt("fullScreenDisplay", fullScreenDisplay);
+  //json.setJSONObject("windowGrid", windowGrid.serialize());
+  try {
+    Config config = new Config();
+    JSONObject json = config.serialize();
+    saveConfig(json);
+  } catch(Exception e){
+    e.printStackTrace();
+    throw(e);
   }
-  Point canvasSize = new Point(width, height);
-  json.setJSONObject("canvasSize", canvasSize.serialize());
-  json.setBoolean("isFullScreen", isFullScreen);
-  json.setInt("fullScreenDisplay", fullScreenDisplay);
-  json.setJSONObject("windowGrid", windowGrid.serialize());
-  saveConfig(json);
+  
 }
 
 void setup(){
   cp5 = new ControlP5(this);
   windowFont = createFont("Georgia", 12);
-  fakeSources = new HashMap<String,String>();
-  fakeSources.put("Foo", "foo");
-  fakeSources.put("Bar", "bar");
   ndiSourceArray = new DevolaySource[0];
   ndiSources = new HashMap<String,DevolaySource>();
-  //fakeSourceArray = new String[](["Foo", "Bar"]);
-  fakeSourceArray = new StringList();
-  fakeSourceArray.append("Foo");
-  fakeSourceArray.append("Bar");
   System.out.println("loadingLibraries...");
   Devolay.loadLibraries();
   ndiFinder = new DevolayFinder();
   
-  JSONObject confData = loadConfig();
+  //JSONObject confData = loadConfig();
+  Config config = getConfig();
   System.out.println("Creating WindowGrid...");
   //if (!confData.isNull("isFullScreen")){
   //  isFullScreen = confData.getBoolean("isFullScreen");
@@ -105,12 +118,14 @@ void setup(){
   
   size(800, 450);
   dstCanvas = createGraphics(width, height);
+  config.windowGrid.outputSize = new Point(width, height);
+  windowGrid = new WindowGrid(config.windowGrid);
   
-  if (confData.isNull("windowGrid")){
-    windowGrid = new WindowGrid(2, 2, width, height);
-  } else {
-    windowGrid = new WindowGrid(confData.getJSONObject("windowGrid"), width, height);
-  }
+  //if (confData.isNull("windowGrid")){
+  //  windowGrid = new WindowGrid(2, 2, width, height);
+  //} else {
+  //  windowGrid = new WindowGrid(confData.getJSONObject("windowGrid"), width, height);
+  //}
   //windowGrid.setOutputSize(width, height);
   System.out.println("setup complete");
 }
@@ -150,6 +165,21 @@ void draw(){
   //text(String.format("nFrames: %d, prev: %d, next: %d", (int)numFrames, lastSourceUpdateFrame, nextFrame), width, height / 2);
   loopInitial = false;
   confAutoSave();
+}
+
+public class MultiviewApplet extends PApplet {
+  MultiviewApplet(){
+    
+  }
+
+  public void settings() {
+    size(200, 100);
+  }
+  public void draw() {
+    background(255);
+    fill(0);
+    ellipse(100, 50, 10, 10);
+  }
 }
 
 void confAutoSave(){
