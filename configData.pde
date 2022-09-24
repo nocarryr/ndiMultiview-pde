@@ -157,6 +157,11 @@ class Config extends ConfigBase {
     windowGrid = new GridConfig();
   }
   
+  void update(MultiviewApplet applet){
+    app.update(applet);
+    windowGrid.update(applet);
+  }
+  
   Object getValueFromJSON(String className, boolean isarr, String fieldName, JSONObject json){
     if (className == "AppConfig"){
       return new AppConfig(json.getJSONObject(fieldName));
@@ -187,10 +192,16 @@ class AppConfig extends ConfigBase {
   AppConfig(JSONObject json){ super(json); }
   AppConfig(){
     super();
-    fullScreen = isFullScreen;
-    displayNumber = fullScreenDisplay;
-    canvasSize = new Point(width, height);
-    windowBounds = getWindowDims();
+    fullScreen = false;
+    displayNumber = -1;
+    canvasSize = new Point(640, 360);
+    windowBounds = new Box(0, 0, 640, 360);
+  }
+  
+  void update(MultiviewApplet applet){
+    fullScreen = applet.isFullScreen;
+    canvasSize = new Point(applet.width, applet.height);
+    windowBounds = applet.getWindowDims();
   }
   
   void _getFieldMap(){
@@ -211,17 +222,30 @@ class GridConfig extends ConfigBase {
   GridConfig(JSONObject json){ super(json); }
   GridConfig(){
     super();
-    //cols = 2;
-    //rows = 2;
-    //padding = new Point(2, 2);
-    //outputSize = new Point(640, 360);
-    //windows = new WindowConfig[4];
-    update(windowGrid);
+    cols = 2;
+    rows = 2;
+    padding = new Point(2, 2);
+    outputSize = new Point(640, 360);
+    windows = new WindowConfig[4];
+    String windowNames[] = {"A", "B", "C", "D"};
+    int i = 0;
+    for (int x=0; x<cols; x++){
+      for (int y=0; y<rows; y++){
+        WindowConfig w = new WindowConfig();
+        w.col = x;
+        w.row = y;
+        w.name = windowNames[i];
+      }
+    }
+    //update(mvApp.windowGrid);
   }
   //GridConfig(WindowGrid grid){
   //  super();
   //  setValuesFromJSON(grid.serialize());
   //}
+  void update(MultiviewApplet applet){
+    update(applet.windowGrid);
+  }
   
   void update(WindowGrid grid){
     setValuesFromJSON(grid.serialize());

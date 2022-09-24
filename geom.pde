@@ -79,6 +79,22 @@ class Box {
     //setPos(pos.add(dxy));
   }
   
+  float getAspectRatioW(){
+    return getHeight() / getWidth();
+  }
+  
+  void setAspectRatioW(float ar){
+    setWidth(getHeight() / ar);
+  }
+  
+  float getAspectRatioH(){
+    return getWidth() / getHeight();
+  }
+  
+  void setAspectRatioH(float ar){
+    setHeight(getWidth() / ar);
+  }
+  
   Point getPos(){
     return pos.copy();
   }
@@ -125,7 +141,7 @@ class Box {
     return size.y;
   }
   void setHeight(float h){
-    size.x = h;
+    size.y = h;
     updateGeometry();
   }
   

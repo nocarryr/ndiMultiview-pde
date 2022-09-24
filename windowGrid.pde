@@ -36,10 +36,15 @@ class WindowGrid {
   WindowGrid(GridConfig config){
     cols = config.cols;
     rows = config.rows;
-    padding = config.padding;
+    padding = config.padding.copy();
     outputSize = config.outputSize.copy();
     outWidth = (int)outputSize.x;
     outHeight = (int)outputSize.y;
+    //float pd = Math.min(outWidth / 200.0, outHeight / 200.0);
+    ////padding.x = outWidth / 200.0;
+    ////padding.y = outHeight / 200.0;
+    //padding.x = pd;
+    //padding.y = pd;
     init();
     for (int i=0; i<config.windows.length; i++){
       addWindow(config.windows[i]);
@@ -141,10 +146,15 @@ class WindowGrid {
     boundingBox = new Box(0, 0, outWidth, outHeight);
     System.out.println("windowGrid bBox: "+boundingBox.toStr());
     fpsText.setBottomCenter(boundingBox.getBottomCenter());
+    //padding.x = Math.round(w / 200.0);
+    //padding.y = Math.round(h / 200.0);
     for (Window win : windowMap.values()){
       win.setBoundingBox(calcBox(win.col, win.row));
     }
-    
+  }
+  
+  void setOutputSize(Point s){
+    setOutputSize((int)s.x, (int)s.y);
   }
   
   void render(PGraphics canvas){

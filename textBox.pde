@@ -105,7 +105,7 @@ class TextBox extends Box {
     //}
     //textPos = _textPos;
     textPos = getCenter();
-    System.out.println(toStr());
+    //System.out.println(toStr());
   }
   
   void render(PGraphics canvas){
@@ -114,7 +114,7 @@ class TextBox extends Box {
     canvas.stroke(128);
     canvas.rect(getX(), getY(), getWidth(), getHeight());
     canvas.fill(fgColor);
-    canvas.textFont(windowFont);
+    canvas.textFont(mvApp.windowFont);
     canvas.textSize(textSize);
     canvas.textAlign(hAlign, vAlign);
     canvas.text(text, textPos.x, textPos.y);

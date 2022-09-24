@@ -1,5 +1,6 @@
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.*;
 
 class Window {
   String name = "";
@@ -19,6 +20,7 @@ class Window {
   PImage srcImage;
   TextBox nameLabel, formatLabel;
 
+  //Lock videoFrameLock;
   DevolaySource ndiSource;
   DevolayReceiver ndiReceiver;
   DevolayVideoFrame videoFrame;
@@ -77,6 +79,7 @@ class Window {
   }
 
   private void init(){
+    //videoFrameLock = new ReentrantLock();
     frameBox = calcFrameBox();
     nameLabel = new TextBox(frameBox.getTopLeft(), 100, 18);
     //nameLabel.text = name;
@@ -101,14 +104,21 @@ class Window {
   Box calcFrameBox(){
     Point pos = new Point(boundingBox.getX() + padding.x, boundingBox.getY() + padding.y);
     Point size = new Point(boundingBox.size.x - padding.x*2, boundingBox.size.y - padding.y*2);
-    return new Box(pos, size);
+    Box b = new Box(pos, size.copy());
+    b.setAspectRatioH(16.0/9.0);
+    if (b.getHeight() > size.y){
+      b.setSize(size.copy());
+      b.setAspectRatioW(9.0/16.0);
+    }
+    b.setCenter(boundingBox.getCenter());
+    return b;
   }
 
   void setBoundingBox(Box _boundingBox){
     boundingBox = _boundingBox;
     frameBox = calcFrameBox();
     nameLabel.setBottomCenter(frameBox.getBottomCenter());
-    System.out.println(String.format("frame.bottomCenter = %s, nameLabel.bottomCenter = %s", frameBox.getBottomCenter().toStr(), nameLabel.getBottomCenter().toStr()));
+    //System.out.println(String.format("frame.bottomCenter = %s, nameLabel.bottomCenter = %s", frameBox.getBottomCenter().toStr(), nameLabel.getBottomCenter().toStr()));
     formatLabel.setTopCenter(frameBox.getTopCenter());
     
     //formatLabel.setHCenter(frameBox.getHCenter());
@@ -135,7 +145,7 @@ class Window {
       return;
     }
     name = _name;
-    saveConfig();
+    mvApp.saveConfig();
     if (updateControls){
       controls.updateFieldValues();
     }
@@ -150,7 +160,7 @@ class Window {
       return;
     }
     ndiSourceName = srcName;
-    saveConfig();
+    mvApp.saveConfig();
     System.out.println(getId()+" ndiSourceName: '"+srcName+"'");
     connectToSource();
     if (updateControls){
@@ -166,11 +176,13 @@ class Window {
   void connectToSource(){
     if (ndiSourceName == "" && ndiReceiver != null){
       ndiReceiver.connect(null);
+      //disconnect();
       ndiSource = null;
       clearImageOnNextFrame = true;
+      maybeConnected = false;
       return;
     }
-    if (!ndiSources.containsKey(ndiSourceName)){
+    if (!mvApp.ndiSources.containsKey(ndiSourceName)){
       if (ndiReceiver != null){
         ndiReceiver.connect(null);
         ndiSource = null;
@@ -180,7 +192,7 @@ class Window {
     }
     connecting = true;
     try {
-      ndiSource = ndiSources.get(ndiSourceName);
+      ndiSource = mvApp.ndiSources.get(ndiSourceName);
       ndiReceiver = new DevolayReceiver(ndiSource, DevolayReceiver.ColorFormat.RGBX_RGBA, DevolayReceiver.RECEIVE_BANDWIDTH_LOWEST, false, null);
       videoFrame = new DevolayVideoFrame();
       audioFrame = new DevolayAudioFrame();
@@ -334,10 +346,12 @@ class Window {
 
   void render(PGraphics canvas){
     canvas.stroke(0);
-    canvas.fill(255);
-    canvas.rect(boundingBox.pos.x, boundingBox.pos.y, boundingBox.size.x, boundingBox.size.y);
     canvas.fill(0);
-    canvas.rect(frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
+    canvas.rect(boundingBox.pos.x, boundingBox.pos.y, boundingBox.size.x, boundingBox.size.y);
+    canvas.stroke(255);
+    canvas.rect(frameBox.pos.x-1, frameBox.pos.y-1, frameBox.size.x+2, frameBox.size.y+2);
+    //canvas.stroke(0);
+    //canvas.rect(frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
     if (clearImageOnNextFrame){
       for (int _i=0; _i < srcImage.width * srcImage.height; _i++){
         srcImage.pixels[_i] = 0;
@@ -466,8 +480,8 @@ class WindowControls {
     List<String> itemNames = new ArrayList<String>();
     int selIndex = -2;
     itemNames.add("None");
-    for (int i=0; i<ndiSourceArray.length; i++){
-      String srcName = ndiSourceArray[i].getSourceName();
+    for (int i=0; i<mvApp.ndiSourceArray.length; i++){
+      String srcName = mvApp.ndiSourceArray[i].getSourceName();
       itemNames.add(srcName);
       if (srcName == win.ndiSourceName){
         selIndex = i+1;
@@ -490,7 +504,7 @@ class WindowControls {
 
 
   void buildSourceDropdown(String name, Point pos){
-    sourceDropdown = cp5.addDropdownList(name)
+    sourceDropdown = mvApp.cp5.addDropdownList(name)
                         .setOpen(false)
                         .plugTo(this, "onSourceDropdown");
     setWidgetPos(sourceDropdown, pos);
@@ -498,14 +512,14 @@ class WindowControls {
   }
   
   void buildEditNameControls(String btnId, Box btnBox, String txtFieldId, Box txtBox){
-    editNameBtn = cp5.addButton(btnId)
+    editNameBtn = mvApp.cp5.addButton(btnId)
                      .setLabel("Edit Name")
                      .setValue(1)
                      .setSwitch(true)
                      .plugTo(this, "onEditNameBtn");
     setWidgetBox(editNameBtn, btnBox);
     
-    editNameField = cp5.addTextfield(txtFieldId)
+    editNameField = mvApp.cp5.addTextfield(txtFieldId)
                        .setText(win.name)
                        .setVisible(false)
                        .setAutoClear(false)
@@ -561,23 +575,34 @@ class WindowControls {
 //class FrameThread extends Thread {
 //  Window win;
 //  DevolayFrameType frameType;
+//  boolean running = false;
 //  Exception error;
 //  FrameThread(Window _win){
 //    win = _win;
 //  }
 //  public void run(){
-//    DevolayFrameType ft;
-//    win.frameReady = false;
-//    win.gettingFrame = true;
-//    try {
-//      frameType = win.getFrame(5000);
-//      win.frameReady = true;
-//    } catch (Exception e) {
-//      frameType = DevolayFrameType.NONE;
-//      error = e;
-//      throw(e);
-//    } finally {
-//      win.gettingFrame = false;
+//    running = true;
+//    while (running){
+//      win.frameReady = false;
+//      win.gettingFrame = true;
+//      try {
+//        frameType = win.getFrame(500);
+//        if (frameType == DevolayFrameType.VIDEO){
+//          win.videoFrameLock.lock();
+//          try {
+//            win.updateFrame();
+//          } finally {
+//            win.videoFrameLock.unlock();
+//          }
+//        }
+//      } catch (Exception e) {
+//        frameType = DevolayFrameType.NONE;
+//        error = e;
+//        throw(e);
+//      } finally {
+        
+//        //win.gettingFrame = false;
+//      }
 //    }
 //  }
 //}
