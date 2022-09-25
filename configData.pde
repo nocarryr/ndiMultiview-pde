@@ -201,7 +201,7 @@ class AppConfig extends ConfigBase {
   void update(MultiviewApplet applet){
     fullScreen = applet.isFullScreen;
     canvasSize = new Point(applet.width, applet.height);
-    windowBounds = applet.getWindowDims();
+    //windowBounds = applet.getWindowDims();
   }
   
   void _getFieldMap(){

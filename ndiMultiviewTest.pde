@@ -7,7 +7,6 @@ import java.awt.GraphicsDevice;
 import java.awt.DisplayMode;
 import processing.awt.*;
 import processing.awt.ShimAWT;
-import java.nio.ByteBuffer;
 import java.io.File;
 import me.walkerknapp.devolay.*;
 import controlP5.*;
@@ -189,7 +188,7 @@ public class MultiviewApplet extends PApplet {
     config = getConfig();
     isFullScreen = config.app.fullScreen;
     if (config.app.fullScreen){
-      fullScreen(config.app.displayNumber);
+      fullScreen(P3D, config.app.displayNumber);
     } else {
       int maxWidth = displayWidth - 100;
       int maxHeight = displayHeight - 100;
@@ -199,7 +198,7 @@ public class MultiviewApplet extends PApplet {
       if (config.app.canvasSize.y >= maxHeight){
         config.app.canvasSize.y = maxHeight;
       }
-      size((int)config.app.canvasSize.x, (int)config.app.canvasSize.y);
+      size((int)config.app.canvasSize.x, (int)config.app.canvasSize.y, P3D);
     }
     //frameRate(60);
   }
@@ -260,7 +259,7 @@ public class MultiviewApplet extends PApplet {
     System.out.println("loadingLibraries...");
     Devolay.loadLibraries();
     ndiFinder = new DevolayFinder();
-    dstCanvas = createGraphics(this.width, this.height);
+    dstCanvas = createGraphics(this.width, this.height, P3D);
     System.out.println("Creating WindowGrid...");
     config.windowGrid.outputSize = new Point(this.width, this.height);
     windowGrid = new WindowGrid(config.windowGrid);
@@ -295,7 +294,7 @@ public class MultiviewApplet extends PApplet {
   
   void checkResize(){
     //int frInterval = secondsToFrame(resizeCheckInterval);
-    if ((int)frameCount % 20 != 0){
+    if ((int)frameCount % 120 != 0){
       return;
     }
     //if (this.mousePressed){// && (mouseButton == LEFT)){
@@ -333,7 +332,7 @@ public class MultiviewApplet extends PApplet {
   
   void confAutoSave(){
     if (nextConfSaveFrame == -1 || frameCount >= nextConfSaveFrame){
-      windowBounds = getWindowDims();
+      //windowBounds = getWindowDims();
       System.out.println("autosave config");
       saveConfig();
       lastConfSaveFrame = frameCount;

@@ -193,7 +193,7 @@ class Window {
     connecting = true;
     try {
       ndiSource = mvApp.ndiSources.get(ndiSourceName);
-      ndiReceiver = new DevolayReceiver(ndiSource, DevolayReceiver.ColorFormat.RGBX_RGBA, DevolayReceiver.RECEIVE_BANDWIDTH_LOWEST, false, null);
+      ndiReceiver = new DevolayReceiver(ndiSource, DevolayReceiver.ColorFormat.RGBX_RGBA, DevolayReceiver.RECEIVE_BANDWIDTH_HIGHEST, false, null);
       videoFrame = new DevolayVideoFrame();
       audioFrame = new DevolayAudioFrame();
       metadataFrame = new DevolayMetadataFrame();
@@ -288,6 +288,19 @@ class Window {
   }
 
   DevolayFrameType getFrameNoWait(){
+    //DevolayFrameType ft = DevolayFrameType.NONE;
+    //boolean videoReceived = false;
+    //while (true){
+    //  ft = getFrame(0);
+    //  if (ft == DevolayFrameType.VIDEO){
+    //    videoReceived = true;
+    //    break;
+    //  }
+    //  else if (ft == DevolayFrameType.NONE){
+    //    break;
+    //  }
+    //}
+    //if (videoReceived
     return getFrame(0);
   }
 
@@ -316,26 +329,30 @@ class Window {
     }
     assert videoFrame.getLineStride() == frameWidth * 4;
     
-    ByteBuffer framePixels = videoFrame.getData();
-    
-    int byteIndex = 0;
-    
-    for (int _y=0; _y < frameHeight; _y++){
-      for (int _x=0; _x < frameWidth; _x++){
-        int pixel = _y * frameWidth + _x;
-        int colorValue = 0;
-        int r, g, b, a;
+    //ByteBuffer framePixels = videoFrame.getData();
+    //int byteIndex = 0;
+    //for (int _y=0; _y < frameHeight; _y++){
+    //  for (int _x=0; _x < frameWidth; _x++){
+    //    int pixel = _y * frameWidth + _x;
+    //    int colorValue = 0;
+    //    int r, g, b, a;
          
-        r = (framePixels.get() & 0xff) << 16;
-        g = (framePixels.get() & 0xff) << 8;
-        b = (framePixels.get() & 0xff);
-        a = (framePixels.get() & 0xff) << 24;
-        colorValue = r | b | g | a;
+    //    r = (framePixels.get() & 0xff) << 16;
+    //    g = (framePixels.get() & 0xff) << 8;
+    //    b = (framePixels.get() & 0xff);
+    //    a = (framePixels.get() & 0xff) << 24;
+    //    colorValue = r | b | g | a;
         
-        srcImage.pixels[pixel] = colorValue;
-        byteIndex += 4;
-        assert framePixels.position() == byteIndex;
-      }
+    //    srcImage.pixels[pixel] = colorValue;
+    //    byteIndex += 4;
+    //    assert framePixels.position() == byteIndex;
+    //  }
+    //}
+    
+    if (fourCC == DevolayFrameFourCCType.RGBA){
+      videoFrameToImageArr_RGBA(videoFrame, srcImage.pixels);
+    } else {
+      videoFrameToImageArr_RGBX(videoFrame, srcImage.pixels);
     }
     srcImage.updatePixels();
      
