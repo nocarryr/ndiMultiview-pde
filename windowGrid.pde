@@ -40,11 +40,6 @@ class WindowGrid {
     outputSize = config.outputSize.copy();
     outWidth = (int)outputSize.x;
     outHeight = (int)outputSize.y;
-    //float pd = Math.min(outWidth / 200.0, outHeight / 200.0);
-    ////padding.x = outWidth / 200.0;
-    ////padding.y = outHeight / 200.0;
-    //padding.x = pd;
-    //padding.y = pd;
     init();
     for (int i=0; i<config.windows.length; i++){
       addWindow(config.windows[i]);
@@ -62,8 +57,13 @@ class WindowGrid {
   
   private void init(){
     boundingBox = new Box(0, 0, outWidth, outHeight);
-    fpsText = new TextBox(boundingBox.getBottomCenter(), 100, 16);
+    fpsText = new TextBox(boundingBox.getPos(), 100, 20);
     fpsText.bgColor = 0xff404040;
+    fpsText.setBottomCenter(boundingBox.getBottomCenter());
+    fpsText.setAlign(CENTER, CENTER);
+    //fpsText.setTextPos(fpsText.getCenter());
+    //fpsText.setTextPos(fpsText.getHCenter(), fpsText.getY() + 10);
+    System.out.println("windowGrid bBox: "+boundingBox.toStr());
     windowMap = new HashMap<String,Window>();
     //updateThreads = new HashMap<String,FrameThread>();
     windows = new Window[cols][rows];
@@ -92,7 +92,7 @@ class WindowGrid {
   void close(){
     System.out.println("closing windows...");
     for (Window win : windowMap.values()){
-      win.disconnect();
+      win.close();
     }
     System.out.println("windows closed");
   }
@@ -159,41 +159,20 @@ class WindowGrid {
   
   void render(PGraphics canvas){
     try {
-      //scheduleFrames();
-      for (Window win : windowMap.values()){
-        if (!win.isConnected()){
-          if (win.canConnect() && !win.connecting){
-            win.connectToSource();
-          }
-        } else {
-          if (win.frameReady){
-            win.updateFrame();
-          } else {
-            win.getFrameNoWait();
-            if (win.frameReady){
-              win.updateFrame();
+      synchronized(mvApp.ndiSourceLock){
+        for (Window win : windowMap.values()){
+          if (!win.isConnected()){
+            if (win.canConnect()){
+              win.connectToSource();
             }
           }
         }
+      }
+      for (Window win : windowMap.values()){
         win.render(canvas);
       }
-      fpsText.text = String.format("%dfps", (int)frameRate);
+      fpsText.text = String.format("%dfps", (int)mvApp.frameRate);
       fpsText.render(canvas);
-      
-      ////Box txtBox = new Box(boundingBox.getBottomCenter(), new Point(100, 16));
-      //Box txtBox = new Box(0, 0, 100, 16);
-      //txtBox.setHCenter(boundingBox.getHCenter());
-      //txtBox.setBottom(boundingBox.getBottom());
-      ////System.out.println(txtBox.toStr());
-      //Alignment align = new Alignment(AlignmentType.CENTER | AlignmentType.BOTTOM);
-      ////System.out.println(String.format("align: intValue=%d, name=%s", align.intValue, align.name));
-      
-      //drawText(canvas, txt, align, txtBox, boundingBox.getBottomCenter(), 80, 255); 
-      ////canvas.textFont(windowFont);
-      ////canvas.stroke(255);
-      ////canvas.fill(255);
-      ////canvas.textAlign(CENTER, BOTTOM);
-      ////canvas.text(String.format("%dfps", (int)frameRate), boundingBox.getHCenter(), boundingBox.getBottom());
     } catch(Exception e){
       close();
       e.printStackTrace();

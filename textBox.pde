@@ -8,6 +8,7 @@ class TextBox extends Box {
   private int bgColor, fgColor;
   public String text;
   private Point textPos;
+  private boolean textPosOverride;
   private int textSize;
   
   TextBox(Point _pos, Point _size, String _text, int _hAlign, int _vAlign, int _textSize, int _bg, int _fg){
@@ -50,10 +51,11 @@ class TextBox extends Box {
   }
   
   void initDefaults(){
+    textPosOverride = false;
     text = "";
     hAlign = CENTER;
     vAlign = CENTER;
-    bgColor = 0x60808080;
+    bgColor = 0x60303030;
     fgColor = 255;
     textSize = 12;
     textPos = new Point(0, 0);
@@ -84,28 +86,47 @@ class TextBox extends Box {
     updateGeometry();
   }
   
+  Point getTextPos(){
+    return textPos.copy();
+  }
+  
+  void setTextPos(Point p){
+    setTextPos(p.x, p.y);
+  }
+  
+  void setTextPos(float x, float y){
+    textPos.x = x;
+    textPos.y = y;
+    textPosOverride = true;
+  }
+  
+  void setTextPosRelative(Point p){
+    Point offset = getPos();
+    setTextPos(p.x + offset.x, p.y + offset.y);
+  }
+  
   void updateGeometry(){
     super.updateGeometry();
-    //Point _textPos = new Point(0, 0);
-    //switch (hAlign){
-    //  case LEFT:
-    //    _textPos.x = getX();
-    //  case CENTER:
-    //    _textPos.x = getHCenter();
-    //  case RIGHT:
-    //    _textPos.x = getRight();
-    //}
-    //switch (vAlign){
-    //  case TOP:
-    //    _textPos.y = getY();
-    //  case CENTER:
-    //    _textPos.y = getVCenter();
-    //  case BOTTOM:
-    //    _textPos.y = getBottom();
-    //}
-    //textPos = _textPos;
-    textPos = getCenter();
-    //System.out.println(toStr());
+    if (textPosOverride){
+      return;
+    }
+    Point _textPos = new Point(-1, -1);
+    if (hAlign == LEFT){
+      _textPos.x = getX();
+    } else if (hAlign == CENTER){
+      _textPos.x = getHCenter();
+    } else if (hAlign == RIGHT){
+      _textPos.x = getRight();
+    }
+    
+    if (vAlign == TOP){
+      _textPos.y = getY();
+    } else if (vAlign == CENTER){
+      _textPos.y = getVCenter();
+    } else if (vAlign == BOTTOM){
+      _textPos.y = getBottom();
+    }
+    textPos = _textPos;
   }
   
   void render(PGraphics canvas){

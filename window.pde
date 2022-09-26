@@ -8,7 +8,6 @@ class Window {
   Point padding;
   Box boundingBox, frameBox;
   String ndiSourceName = "";
-  int srcWidth,srcHeight;
   int numFrames = 0, numDraws = 0;
   long droppedFrames = 0;
   boolean frameReady = false;
@@ -20,13 +19,7 @@ class Window {
   PImage srcImage;
   TextBox nameLabel, formatLabel;
 
-  //Lock videoFrameLock;
-  DevolaySource ndiSource;
-  DevolayReceiver ndiReceiver;
-  DevolayVideoFrame videoFrame;
-  DevolayAudioFrame audioFrame;
-  DevolayMetadataFrame metadataFrame;
-  DevolayFrameType lastFrameType;
+  FrameHandler frameHandler;
   WindowControls controls;
 
   Window(String _name, int _col, int _row, float _x, float _y, float _w, float _h, Point _padding, String _ndiSourceName) {
@@ -79,26 +72,19 @@ class Window {
   }
 
   private void init(){
-    //videoFrameLock = new ReentrantLock();
     frameBox = calcFrameBox();
     nameLabel = new TextBox(frameBox.getTopLeft(), 100, 18);
-    //nameLabel.text = name;
-    formatLabel = new TextBox(frameBox.getTopLeft(), 100, 18);
+    formatLabel = new TextBox(frameBox.getTopLeft(), 260, 18);
     nameLabel.setBottomCenter(frameBox.getBottomCenter());
-    //System.out.println(String.format("frame.bottomCenter = %s, nameLabel.bottomCenter = %s", frameBox.getBottomCenter().toStr(), nameLabel.getBottomCenter().toStr()));
-    formatLabel.setTopCenter(frameBox.getTopCenter());
-    System.out.println(String.format("%s bBox: %s, frame: %s", getId(), boundingBox.toStr(), frameBox.toStr()));
-    lastFrameType = DevolayFrameType.NONE;
-    srcWidth = 1920;
-    srcHeight = 1080;
-    srcImage = new PImage(srcWidth, srcHeight, ARGB);
-
-    //connectToSource();
-    controls = new WindowControls(this);
-    //if (boundingBox.getTotalArea() > 0){
-    //  controls.initControls();
-    //}
+    nameLabel.setAlign(CENTER, BOTTOM);
     
+    formatLabel.setTopCenter(frameBox.getTopCenter());
+    formatLabel.setAlign(CENTER, TOP);
+    System.out.println(String.format("%s bBox: %s, frame: %s", getId(), boundingBox.toStr(), frameBox.toStr()));
+
+    frameHandler = new FrameHandler();
+
+    controls = new WindowControls(this);
   }
 
   Box calcFrameBox(){
@@ -118,17 +104,8 @@ class Window {
     boundingBox = _boundingBox;
     frameBox = calcFrameBox();
     nameLabel.setBottomCenter(frameBox.getBottomCenter());
-    //System.out.println(String.format("frame.bottomCenter = %s, nameLabel.bottomCenter = %s", frameBox.getBottomCenter().toStr(), nameLabel.getBottomCenter().toStr()));
     formatLabel.setTopCenter(frameBox.getTopCenter());
-    
-    //formatLabel.setHCenter(frameBox.getHCenter());
-    //formatLabel.setY(frameBox.getY());
-    //if (boundingBox.getWidth() > 0 && boundingBox.getHeight() > 0){
-    //  controls = new WindowControls(this);
-    //}
-    //if (boundingBox.getTotalArea() > 0){
-    //  controls.initControls();
-    //}
+    controls.initControls();
   }
 
   String getId(){
@@ -164,7 +141,6 @@ class Window {
     System.out.println(getId()+" ndiSourceName: '"+srcName+"'");
     connectToSource();
     if (updateControls){
-      //controls.updateDropdownItems();
       updateNdiSources();
     }
   }
@@ -174,191 +150,44 @@ class Window {
   }
 
   void connectToSource(){
-    if (ndiSourceName == "" && ndiReceiver != null){
-      ndiReceiver.connect(null);
-      //disconnect();
-      ndiSource = null;
-      clearImageOnNextFrame = true;
-      maybeConnected = false;
+    DevolaySource src = null;
+    if (ndiSourceName == frameHandler.sourceName){
       return;
     }
-    if (!mvApp.ndiSources.containsKey(ndiSourceName)){
-      if (ndiReceiver != null){
-        ndiReceiver.connect(null);
-        ndiSource = null;
-        clearImageOnNextFrame = true;
+    synchronized(mvApp.ndiSourceLock){
+      if (ndiSourceName != ""){
+        if (mvApp.ndiSources.containsKey(ndiSourceName)){
+          src = mvApp.ndiSources.get(ndiSourceName);
+        }
       }
-      return;
+      
+      frameHandler.connectToSource(src);
+      maybeConnected = frameHandler.maybeConnected;
+      if (maybeConnected){
+        frameHandler.open();
+      }
     }
-    connecting = true;
-    try {
-      ndiSource = mvApp.ndiSources.get(ndiSourceName);
-      ndiReceiver = new DevolayReceiver(ndiSource, DevolayReceiver.ColorFormat.RGBX_RGBA, DevolayReceiver.RECEIVE_BANDWIDTH_HIGHEST, false, null);
-      videoFrame = new DevolayVideoFrame();
-      audioFrame = new DevolayAudioFrame();
-      metadataFrame = new DevolayMetadataFrame();
-      maybeConnected = true;
-    } catch (Exception e){
-      clearImageOnNextFrame = true;
-      throw(e);
-    } finally {
-      connecting = false;
-    }
+  }
+  
+  void close(){
+    frameHandler.close();
+    maybeConnected = false;
   }
 
   void disconnect(){
-    if (ndiReceiver != null){
-      ndiReceiver.close();
-      ndiReceiver = null;
-    }
-    if (videoFrame != null){
-      videoFrame.close();
-      videoFrame = null;
-    }
-    if (audioFrame != null){
-      audioFrame.close();
-      audioFrame = null;
-    }
-    if (metadataFrame != null){
-      metadataFrame.close();
-      metadataFrame = null;
-    }
-    ndiReceiver = null;
-    ndiSource = null;
-    frameReady = false;
-    canvasReady = false;
-    connecting = false;
-    numFrames = 0;
-    numDraws = 0;
-    droppedFrames = 0;
+    frameHandler.disconnect();
     clearImageOnNextFrame = true;
     maybeConnected = false;
   }
 
   boolean isConnected(){
-     if (ndiSource == null){
-       maybeConnected = false;
-       return false;
-     }
-     if (ndiReceiver == null){
-       maybeConnected = false;
-       return false;
-     }
-     if (ndiReceiver.getConnectionCount() == 0){
-       maybeConnected = false;
-       return false;
-     }
-     maybeConnected = true;
-     return true;
+     boolean result = frameHandler.isConnected();
+     maybeConnected = result;
+     return result;
   }
 
   boolean canConnect(){
     return (ndiSourceName.length() > 0);
-  }
-
-  DevolayFrameType getFrame(int timeout) {
-    DevolayFrameType frameType = DevolayFrameType.NONE;
-    if (frameReady){
-      return frameType;
-    }
-    //gettingFrame = true;
-    try {
-      //frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, metadataFrame, timeout);
-      frameType = ndiReceiver.receiveCapture(videoFrame, null, null, timeout);
-    } finally {
-      lastFrameType = frameType;
-    }
-    if (lastFrameType == DevolayFrameType.VIDEO){
-      frameReady = true;
-      numFrames += 1;
-    }
-    DevolayPerformanceData performanceData = new DevolayPerformanceData();
-    try {
-      ndiReceiver.queryPerformance(performanceData);
-      long _droppedFrames = performanceData.getDroppedVideoFrames();
-      long _totalFrames = performanceData.getTotalVideoFrames();
-      if (_droppedFrames != droppedFrames){
-        droppedFrames = _droppedFrames;
-        System.out.println(String.format("'%s' Dropped Video: %d / %d", getId(), droppedFrames, _totalFrames));
-      }
-    } finally {
-      performanceData.close();
-    }
-    return frameType;
-  }
-
-  DevolayFrameType getFrameNoWait(){
-    //DevolayFrameType ft = DevolayFrameType.NONE;
-    //boolean videoReceived = false;
-    //while (true){
-    //  ft = getFrame(0);
-    //  if (ft == DevolayFrameType.VIDEO){
-    //    videoReceived = true;
-    //    break;
-    //  }
-    //  else if (ft == DevolayFrameType.NONE){
-    //    break;
-    //  }
-    //}
-    //if (videoReceived
-    return getFrame(0);
-  }
-
-  void updateFrame(){
-    int frameWidth = videoFrame.getXResolution();
-    int frameHeight = videoFrame.getYResolution();
-    DevolayFrameFourCCType fourCC = videoFrame.getFourCCType();
-    assert (fourCC == DevolayFrameFourCCType.RGBA || fourCC == DevolayFrameFourCCType.RGBX);
-    
-    if (frameWidth == 0 || frameHeight == 0){
-      System.out.println("frameSize = 0");
-      srcWidth = 0;
-      srcHeight = 0;
-      frameReady = false;
-      canvasReady = false;
-      return;
-    }
-    if (srcWidth != frameWidth || srcHeight != frameHeight){
-      System.out.println(String.format("resize image to %dx%d", frameWidth, frameHeight));
-      srcWidth = frameWidth;
-      srcHeight = frameHeight;
-      if (srcWidth != srcImage.width || srcHeight != srcImage.height){
-        srcImage.init(frameWidth, frameHeight, ARGB);
-      }
-      assert srcImage.pixels.length == srcWidth * srcHeight;
-    }
-    assert videoFrame.getLineStride() == frameWidth * 4;
-    
-    //ByteBuffer framePixels = videoFrame.getData();
-    //int byteIndex = 0;
-    //for (int _y=0; _y < frameHeight; _y++){
-    //  for (int _x=0; _x < frameWidth; _x++){
-    //    int pixel = _y * frameWidth + _x;
-    //    int colorValue = 0;
-    //    int r, g, b, a;
-         
-    //    r = (framePixels.get() & 0xff) << 16;
-    //    g = (framePixels.get() & 0xff) << 8;
-    //    b = (framePixels.get() & 0xff);
-    //    a = (framePixels.get() & 0xff) << 24;
-    //    colorValue = r | b | g | a;
-        
-    //    srcImage.pixels[pixel] = colorValue;
-    //    byteIndex += 4;
-    //    assert framePixels.position() == byteIndex;
-    //  }
-    //}
-    
-    if (fourCC == DevolayFrameFourCCType.RGBA){
-      videoFrameToImageArr_RGBA(videoFrame, srcImage.pixels);
-    } else {
-      videoFrameToImageArr_RGBX(videoFrame, srcImage.pixels);
-    }
-    srcImage.updatePixels();
-     
-    frameReady = false;
-    canvasReady = true;
-    numDraws += 1;
   }
 
   void render(PGraphics canvas){
@@ -367,36 +196,18 @@ class Window {
     canvas.rect(boundingBox.pos.x, boundingBox.pos.y, boundingBox.size.x, boundingBox.size.y);
     canvas.stroke(255);
     canvas.rect(frameBox.pos.x-1, frameBox.pos.y-1, frameBox.size.x+2, frameBox.size.y+2);
-    //canvas.stroke(0);
-    //canvas.rect(frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
-    if (clearImageOnNextFrame){
-      for (int _i=0; _i < srcImage.width * srcImage.height; _i++){
-        srcImage.pixels[_i] = 0;
-      }
-      srcImage.updatePixels();
-      clearImageOnNextFrame = false;
-      canvas.image(srcImage, frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
-    } else if (maybeConnected){
-      canvas.image(srcImage, frameBox.pos.x, frameBox.pos.y, frameBox.size.x, frameBox.size.y);
+    NDIImageHandler img = frameHandler.getNextReadImage();
+    int imgIdx = -1;
+    if (img != null && !img.isBlank){
+      img.drawToCanvas(canvas, frameBox);
+      imgIdx = img.index;
     }
-    canvasReady = false;
     nameLabel.text = name;
     nameLabel.render(canvas);
-    formatLabel.text = String.format("%dx%d", srcWidth, srcHeight);
+    formatLabel.text = String.format("Dropped %d frames out of %d total", frameHandler.droppedFrames, frameHandler.totalFrames);
+    //formatLabel.text = String.format("%02d", imgIdx);
+    //formatLabel.text = String.format("%dx%d", srcWidth, srcHeight);
     formatLabel.render(canvas);
-    //canvas.textFont(windowFont);
-    //canvas.stroke(255);
-    //canvas.fill(255);
-    //canvas.textAlign(CENTER, TOP);
-    //canvas.text(name, frameBox.getHCenter(), frameBox.pos.y);
-    //String imgString = String.format("%dx%d", srcWidth, srcHeight);
-    //canvas.textAlign(RIGHT, TOP);
-    //canvas.text(imgString, frameBox.getRight(), frameBox.pos.y);
-    
-    //if (videoFrame != null){
-    //  canvas.textAlign(CENTER, BOTTOM);
-    //  canvas.text(timecodeStr(videoFrame.getTimecode()), frameBox.getHCenter(), frameBox.getBottom());
-    //}
   }
 }
 
@@ -416,11 +227,6 @@ class WindowControls {
   }
 
   void initControls(){
-    //boolean create = false;
-    //if (!controlsCreated && win.boundingBox.getWidth() > 0 && win.boundingBox.getHeight() > 0){
-    //  create = true;
-    //}
-    //initControls(create);
     initControls(false);
   }
   
@@ -430,18 +236,16 @@ class WindowControls {
     }
     System.out.println("initControls: win.getId = '" + win.getId() + "', myId='" + winId + "'");
     String dropdownId = winId + "-dropdown";
-    Point ddPos = win.frameBox.getPos();//win.frameBox.getHCenter(), win.frameBox.pos.y);
+    Point ddPos = win.frameBox.getPos();
     if (sourceDropdown == null){
       buildSourceDropdown(dropdownId, ddPos);
+    } else {
+      setWidgetPos(sourceDropdown, ddPos);
     }
-    //setWidgetPos(sourceDropdown, ddPos);
-    //sourceDropdown.setPosition(ddPos.x, ddPos.y);
     
     String editNameBtnId = winId + "-editNameBtn";
     String editNameFieldId = winId + "-editNameField";
     Box editNameBtnBox = new Box(win.nameLabel);
-    //Box editNameBtnBox = new Box(0, 0, win.nameLabel.getSize());
-    //editNameBtnBox.setCenter(win.frameBox.getCenter());
     editNameBtnBox.setX(win.nameLabel.getRight() + 8);
     Box editNameFieldBox = new Box(win.nameLabel);
     editNameFieldBox.setRight(win.nameLabel.getX() - 8);
@@ -451,9 +255,9 @@ class WindowControls {
       if (!editNameEnabled){
         editNameField.setText(win.name);
       }
+      setWidgetBox(editNameBtn, editNameBtnBox);
+      setWidgetBox(editNameField, editNameFieldBox);
     }
-    //setWidgetPos(editNameBtn, editNameBtnBox);
-    //setWidgetPos(editNameField, editNameFieldBox);
     controlsCreated = true;
   }
   
@@ -497,11 +301,13 @@ class WindowControls {
     List<String> itemNames = new ArrayList<String>();
     int selIndex = -2;
     itemNames.add("None");
-    for (int i=0; i<mvApp.ndiSourceArray.length; i++){
-      String srcName = mvApp.ndiSourceArray[i].getSourceName();
-      itemNames.add(srcName);
-      if (srcName == win.ndiSourceName){
-        selIndex = i+1;
+    synchronized(mvApp.ndiSourceLock){
+      for (int i=0; i<mvApp.ndiSourceArray.length; i++){
+        String srcName = mvApp.ndiSourceArray[i].getSourceName();
+        itemNames.add(srcName);
+        if (srcName == win.ndiSourceName){
+          selIndex = i+1;
+        }
       }
     }
     if (win.ndiSourceName != "" && !itemNames.contains(win.ndiSourceName)){
@@ -587,39 +393,3 @@ class WindowControls {
     return new Box(xy[0], xy[1], w, h);
   }
 }
-
-
-//class FrameThread extends Thread {
-//  Window win;
-//  DevolayFrameType frameType;
-//  boolean running = false;
-//  Exception error;
-//  FrameThread(Window _win){
-//    win = _win;
-//  }
-//  public void run(){
-//    running = true;
-//    while (running){
-//      win.frameReady = false;
-//      win.gettingFrame = true;
-//      try {
-//        frameType = win.getFrame(500);
-//        if (frameType == DevolayFrameType.VIDEO){
-//          win.videoFrameLock.lock();
-//          try {
-//            win.updateFrame();
-//          } finally {
-//            win.videoFrameLock.unlock();
-//          }
-//        }
-//      } catch (Exception e) {
-//        frameType = DevolayFrameType.NONE;
-//        error = e;
-//        throw(e);
-//      } finally {
-        
-//        //win.gettingFrame = false;
-//      }
-//    }
-//  }
-//}
