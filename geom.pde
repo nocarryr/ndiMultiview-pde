@@ -212,6 +212,10 @@ class Box {
   Point getBottomLeft(){
     return new Point(getX(), getBottom());
   }
+  void setBottomLeft(Point p){
+    pos.x = p.x;
+    pos.y = p.y - getHeight();
+  }
   
   Point getBottomCenter(){
     return new Point(getHCenter(), getBottom());

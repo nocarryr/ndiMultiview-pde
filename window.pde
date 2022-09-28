@@ -17,7 +17,7 @@ class Window {
   boolean clearImageOnNextFrame = false;
   boolean maybeConnected = false;
   PImage srcImage;
-  TextBox nameLabel, formatLabel;
+  TextBox nameLabel, formatLabel, statsLabel;
 
   FrameHandler frameHandler;
   WindowControls controls;
@@ -75,11 +75,17 @@ class Window {
     frameBox = calcFrameBox();
     nameLabel = new TextBox(frameBox.getTopLeft(), 100, 18);
     formatLabel = new TextBox(frameBox.getTopLeft(), 260, 18);
+    statsLabel = new TextBox(frameBox.getTopLeft(), 200, 60);
+    
     nameLabel.setBottomCenter(frameBox.getBottomCenter());
     nameLabel.setAlign(CENTER, BOTTOM);
     
     formatLabel.setTopCenter(frameBox.getTopCenter());
     formatLabel.setAlign(CENTER, TOP);
+    
+    statsLabel.setBottomLeft(frameBox.getBottomLeft());
+    statsLabel.setAlign(LEFT, BOTTOM);
+    
     System.out.println(String.format("%s bBox: %s, frame: %s", getId(), boundingBox.toStr(), frameBox.toStr()));
 
     frameHandler = new FrameHandler();
@@ -208,6 +214,15 @@ class Window {
     //formatLabel.text = String.format("%02d", imgIdx);
     //formatLabel.text = String.format("%dx%d", srcWidth, srcHeight);
     formatLabel.render(canvas);
+    //statsLabel.text = String.format("maxRenders: %d, imgIdx: %d\ninFlight: %d / %d\nwriteQueue: %d, readQueue: %d", 
+    //  frameHandler.maxRenders, imgIdx, frameHandler.inFlight, frameHandler.maxInFlight, 
+    //  frameHandler.writeQueue.size(), frameHandler.readQueue.size()
+    //);
+    statsLabel.text = String.format("peak: %s, amplitude: %s\nrms:  %04.1f dB\nblockSize: %s, bfrLen: %s\n stride: %d, nChannels: %d",
+      frameHandler.audio.meter.peakDbfs[0], frameHandler.audio.meter.peakAmp[0], frameHandler.audio.meter.rmsDbfs[0],
+      frameHandler.audio.meter.blockSize, frameHandler.audio.meter.bufferLength[0], frameHandler.audio.stride, frameHandler.audio.meter.nChannels
+    );
+    statsLabel.render(canvas);
   }
 }
 

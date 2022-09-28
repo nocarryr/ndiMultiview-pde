@@ -1,13 +1,14 @@
-import java.util.Arrays;
-import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
+import java.util.*;
+import java.nio.*;
 
 
 class FrameHandler {
   boolean connecting = false;
   boolean maybeConnected = false;
   long numFrames = 0, droppedFrames = 0, totalFrames = 0;
+  int maxRenders, inFlight, maxInFlight;
   String sourceName = "";
+  Deque<Integer> readQueue, writeQueue;
   FrameThread frameThread;
   DevolayReceiver ndiReceiver;
   DevolayVideoFrame videoFrame;
@@ -28,10 +29,17 @@ class FrameHandler {
     rwLock = new ReentrantReadWriteLock();
     rLock = rwLock.readLock();
     wLock = rwLock.writeLock();
+    maxRenders = 0;
+    inFlight = 0;
+    maxInFlight = 0;
+    readQueue = new ArrayDeque<Integer>();
+    writeQueue = new ArrayDeque<Integer>();
     images = new NDIImageHandler[4];
     for (int i=0; i<images.length; i++){
       images[i] = new NDIImageHandler(this, i);
     }
+    fillWriteQueue();
+    assert writeQueue.size() == images.length - 1;
     //open();
   }
   
@@ -65,57 +73,63 @@ class FrameHandler {
     return _isOpen;
   }
   
-  int incrementWriteIndex(){
-    wLock.lock();
-    int idx = nextWriteIndex + 1;
-    int result = -1;
-    int iterCount = 0;
-    try {
-      //result = 0;
-      if (idx >= images.length){
-        idx = 0;
-      }
-      while (iterCount <= images.length){
-        if (idx != nextReadIndex){
-          result = idx;
-          break;
-        }
-        idx += 1;
-        
-        iterCount += 1;
-      }
-      nextWriteIndex = result;
-    } finally {
-      wLock.unlock();
-    }
-    return result;
-  }
-  
-  void setReadIndex(int idx){
-    rLock.lock();
-    nextReadIndex = idx;
-    rLock.unlock();
-  }
-  
   NDIImageHandler getNextReadImage(){
     rLock.lock();
-    int idx = nextReadIndex;
     NDIImageHandler result = null;
+    int idx = -1;
     try {
+      if (readQueue.size() == 0){
+        idx = nextReadIndex;
+      } else {
+        idx = readQueue.pop();
+        if (readQueue.size() == 0){
+          readQueue.addFirst(idx);
+        }
+      }
       if (idx != -1){
         result = images[idx];
       }
+      nextReadIndex = idx;
     } finally {
       rLock.unlock();
     }
     return result;
   }
   
+  private void fillWriteQueue(){
+    wLock.lock();
+    try {
+      rLock.lock();
+      try {
+        for (int i=0; i<images.length; i++){
+          if (writeQueue.contains(i) || i == nextReadIndex || i == nextWriteIndex){
+            continue;
+          } else if (readQueue.contains(i)){
+            readQueue.remove(i);
+            //continue;
+          }
+          writeQueue.addLast(i);
+        }
+      } finally {
+        rLock.unlock();
+      }
+    } finally {
+      wLock.unlock();
+    }
+  }
+  
   NDIImageHandler getNextWriteImage(){
     wLock.lock();
-    int idx = nextWriteIndex;
     NDIImageHandler result = null;
+    int idx = -1;
     try {
+      if (writeQueue.size() > 0){
+        idx = writeQueue.pop();
+      } else {
+        idx = -1;
+      }
+      nextWriteIndex = idx;
+      fillWriteQueue();
       if (idx != -1){
         result = images[idx];
       }
@@ -123,6 +137,42 @@ class FrameHandler {
       wLock.unlock();
     }
     return result;
+  }
+  
+  void setImageWriteComplete(NDIImageHandler img){
+    wLock.lock();
+    try {
+      rLock.lock();
+      try {
+        img.readReady = true;
+        readQueue.addLast(img.index);
+        inFlight = readQueue.size();
+        if (inFlight > maxInFlight){
+          maxInFlight = inFlight;
+        }
+      } finally {
+        rLock.unlock();
+      }
+    } finally {
+      wLock.unlock();
+    }
+  }
+  
+  private void resetQueues(){
+    wLock.lock();
+    try {
+      rLock.lock();
+      try {
+        nextReadIndex = -1;
+        nextWriteIndex = 0;
+        readQueue.clear();
+        writeQueue.clear();
+      } finally {
+        rLock.unlock();
+      }
+    } finally {
+      wLock.unlock();
+    }
   }
   
   private void notifyConnected(){
@@ -148,6 +198,7 @@ class FrameHandler {
   
   private void _connectToSource(DevolaySource source){
     if (ndiReceiver != null){
+      resetQueues();
       ndiReceiver.connect(source);
       if (source == null){
         //ndiReceiver.connect(null);
@@ -216,7 +267,11 @@ class FrameHandler {
     connecting = false;
     numFrames = 0;
     droppedFrames = 0;
+    maxRenders = 0;
+    inFlight = 0;
+    maxInFlight = 0;
     maybeConnected = false;
+    resetQueues();
   }
   
   boolean isConnected(){
@@ -274,6 +329,7 @@ class NDIImageHandler implements PConstants{
   Lock rLock;
   Lock wLock;
   boolean writeReady = true, readReady = true, isBlank = true;
+  int numRenders;
   
   NDIImageHandler(FrameHandler _parent, int _index){
     parent = _parent;
@@ -283,6 +339,7 @@ class NDIImageHandler implements PConstants{
     rwLock = new ReentrantReadWriteLock();
     rLock = rwLock.readLock();
     wLock = rwLock.writeLock();
+    numRenders = 0;
   }
   
   int getWidth(){ return (int)resolution.x; }
@@ -307,6 +364,10 @@ class NDIImageHandler implements PConstants{
       //assert readReady;
       image.updatePixels();
       canvas.image(image, dims.getX(), dims.getY(), dims.getWidth(), dims.getHeight());
+      numRenders += 1;
+      if (numRenders > parent.maxRenders){
+        parent.maxRenders = numRenders;
+      }
     } finally {
       //writeReady = true;
       //readReady = false;
@@ -326,6 +387,7 @@ class NDIImageHandler implements PConstants{
       result = _setImagePixels(videoFrame);
       readReady = true;
       //writeReady = false;
+      numRenders = 0;
       isBlank = false;
     } catch (Exception e){
       e.printStackTrace();
@@ -414,9 +476,7 @@ class FrameThread extends Thread {
             if (img != null){
               //println("got img");
               img.setImagePixels(handler.videoFrame);
-              img.readReady = true;
-              handler.setReadIndex(img.index);
-              handler.incrementWriteIndex();
+              handler.setImageWriteComplete(img);
             } else {
               println("img is null :(");
             }

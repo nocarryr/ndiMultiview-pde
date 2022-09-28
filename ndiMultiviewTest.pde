@@ -158,7 +158,7 @@ public class MultiviewApplet extends PApplet {
   
   public void setup(){
     this.surface.setResizable(true);
-    this.frameRate(120);
+    this.frameRate(60);
     cp5 = new ControlP5(this);
     Box btnBox = new Box(0, 0, 40, 20);
     btnBox.setRight(width);
