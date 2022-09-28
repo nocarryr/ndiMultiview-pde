@@ -218,7 +218,7 @@ class Window {
     //  frameHandler.maxRenders, imgIdx, frameHandler.inFlight, frameHandler.maxInFlight, 
     //  frameHandler.writeQueue.size(), frameHandler.readQueue.size()
     //);
-    statsLabel.text = String.format("peak: %s, amplitude: %s\nrms:  %04.1f dB\nblockSize: %s, bfrLen: %s\n stride: %d, nChannels: %d",
+    statsLabel.text = String.format("peak: %5.1f, amplitude: %08.6f\nrms:  %5.1f dB\nblockSize: %s, bfrLen: %s\n stride: %d, nChannels: %d",
       frameHandler.audio.meter.peakDbfs[0], frameHandler.audio.meter.peakAmp[0], frameHandler.audio.meter.rmsDbfs[0],
       frameHandler.audio.meter.blockSize, frameHandler.audio.meter.bufferLength[0], frameHandler.audio.stride, frameHandler.audio.meter.nChannels
     );

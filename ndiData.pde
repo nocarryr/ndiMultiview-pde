@@ -17,6 +17,7 @@ class FrameHandler {
   
   int nextWriteIndex = 0, nextReadIndex = -1;
   NDIImageHandler[] images;
+  NDIAudioHandler audio;
   Object stateLockObj;
   ReentrantReadWriteLock rwLock;
   Lock rLock;
@@ -38,6 +39,7 @@ class FrameHandler {
     for (int i=0; i<images.length; i++){
       images[i] = new NDIImageHandler(this, i);
     }
+    audio = new NDIAudioHandler(this);
     fillWriteQueue();
     assert writeQueue.size() == images.length - 1;
     //open();
@@ -296,7 +298,7 @@ class FrameHandler {
     DevolayFrameType frameType = DevolayFrameType.NONE;
     //try {
       //frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, metadataFrame, timeout);
-      frameType = ndiReceiver.receiveCapture(videoFrame, null, null, timeout);
+      frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, null, timeout);
     //} finally {
     //  lastFrameType = frameType;
     //}
@@ -430,6 +432,108 @@ class NDIImageHandler implements PConstants{
   }
 }
 
+class NDIAudioHandler {
+  FrameHandler parent;
+  int sampleRate, nChannels, blockSize, stride;
+  private boolean initialized = false;
+  AudioMeter meter;
+  NDIAudioHandler(FrameHandler _parent){
+    parent = _parent;
+    initialized = false;
+    meter = new AudioMeter(1, 1, 1);
+  }
+  
+  void setInitData(DevolayAudioFrame frame){
+    sampleRate = frame.getSampleRate();
+    nChannels = frame.getChannels();
+    blockSize = frame.getSamples();
+    meter = new AudioMeter(sampleRate, nChannels, blockSize);
+  }
+  
+  void processFrame(){
+    DevolayAudioFrame frame = parent.audioFrame;
+    if (!initialized){
+      setInitData(frame);
+      initialized = true;
+    }
+    stride = frame.getChannelStride();
+    //meter.processSamples(frame.getData(), frame.getSamples(), frame.getChannelStride());
+    meter.processSamples(frame);
+  }
+}
+
+double NINF = Double.NEGATIVE_INFINITY;
+
+class AudioMeter {  
+  double[] rmsDbfs, rmsDbu, peakDbfs, peakDbu, peakAmp;
+  int sampleRate, nChannels, blockSize, stride;
+  float avgTime = .1;
+  int[] bufferLength;
+  AudioMeter(int fs, int nch, int _blockSize){
+    sampleRate = fs;
+    nChannels = nch;
+    blockSize = _blockSize;
+    rmsDbfs = new double[nChannels];
+    rmsDbu = new double[nChannels];
+    peakDbfs = new double[nChannels];
+    peakDbu = new double[nChannels];
+    peakAmp = new double[nChannels];
+    bufferLength = new int[nChannels];
+    for (int i=0; i<nChannels; i++){
+      rmsDbfs[i] = NINF;
+      rmsDbu[i] = NINF;
+      peakDbfs[i] = NINF;
+      peakDbu[i] = NINF;
+      peakAmp[i] = 0;
+      bufferLength[i] = 0;
+    }
+  }
+  
+  void processSamples(DevolayAudioFrame frame){
+    int size = frame.getSamples();
+    int stride = frame.getChannelStride();
+    int nch = frame.getChannels();
+    ByteBuffer data = frame.getData().order(ByteOrder.LITTLE_ENDIAN);
+    double[] chPeaks = new double[nch];
+    double[] chSums = new double[nch];
+    for (int i=0; i<nch; i++){
+      chPeaks[i] = 0;
+      chSums[i] = 0;
+    }
+    
+    for (int ch=0; ch<nch; ch++){
+      for (int samp=0; samp<size; samp++){
+        Float vf = data.getFloat();
+        double v = vf.doubleValue();
+        
+        double vabs = Math.abs(v);
+        if (vabs > chPeaks[ch]){
+          chPeaks[ch] = vabs;
+        }
+        v *= .1;
+        chSums[ch] += v * v;
+      }
+    }
+    
+    for (int ch=0; ch<nch; ch++){
+      double vabs = chPeaks[ch] * .1;
+      peakAmp[ch] = vabs;
+      peakDbfs[ch] = 10 * Math.log10(vabs);
+      peakDbu[ch] = peakDbfs[ch] + 24;
+      double mag = Math.sqrt(chSums[ch] / size);
+      if (mag == 0){
+        rmsDbfs[ch] = NINF;
+      } else {
+        rmsDbfs[ch] = 10 * Math.log10(mag);
+        rmsDbu[ch] = rmsDbfs[ch] + 24;
+      }
+      bufferLength[ch] = size;
+    }
+  }
+}
+    
+  
+
 class FrameThread extends Thread {
   FrameHandler handler;
   boolean running = false;
@@ -464,23 +568,28 @@ class FrameThread extends Thread {
         //println("getting frame");
         DevolayFrameType ft = handler.getFrame(100);
         //println(ft);
-        if (ft == DevolayFrameType.VIDEO){  
-        
-          NDIImageHandler img = null;
-          //println("locking");
-          synchronized(handler.stateLockObj){
-            if (!handler.maybeConnected){
-              continue;
+        switch (ft){  
+          case VIDEO:
+            NDIImageHandler img = null;
+            //println("locking");
+            synchronized(handler.stateLockObj){
+              if (!handler.maybeConnected){
+                continue;
+              }
+              img = handler.getNextWriteImage();
+              if (img != null){
+                //println("got img");
+                img.setImagePixels(handler.videoFrame);
+                handler.setImageWriteComplete(img);
+              } else {
+                println("img is null :(");
+              }
             }
-            img = handler.getNextWriteImage();
-            if (img != null){
-              //println("got img");
-              img.setImagePixels(handler.videoFrame);
-              handler.setImageWriteComplete(img);
-            } else {
-              println("img is null :(");
-            }
-          }
+            break;
+            
+          case AUDIO:
+            handler.audio.processFrame();
+            break;
         }
       } catch(Exception e){
         e.printStackTrace();
