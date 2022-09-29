@@ -236,6 +236,40 @@ class Box {
   
   void updateGeometry(){ }
   
+  void drawRect(PGraphics canvas){
+    canvas.rect(getX(), getY(), getWidth(), getHeight());
+  }
+  
+  void fillRect(PShape canvas, color c){
+    canvas.fill(c);
+  }
+  
+  void fillVGradient(PShape canvas, color c1, color c2) {
+    int x = getX(), y = getY(), w = getWidth(), h = getHeight();
+    //canvas.noFill();
+    for (int i = y; i <= y+h; i++) {
+      float inter = map(i, y, y+h, 0, 1);
+      color c = lerpColor(c1, c2, inter);
+      canvas.stroke(c);
+      canvas.line(x, i, x+w, i);
+    }
+  }
+  
+  void fillHGradient(PShape canvas, color c1, color c2){
+    int x = getX(), y = getY(), w = getWidth(), h = getHeight();
+    //canvas.noFill();
+    for (int i = x; i <= x+w; i++) {
+      float inter = map(i, x, x+w, 0, 1);
+      color c = lerpColor(c1, c2, inter);
+      canvas.stroke(c);
+      canvas.line(i, y, i, y+h);
+    }
+  }
+  
+  PShape buildRect(PApplet canvas){
+    return canvas.createShape(RECT, getX(), getY(), getWidth(), getHeight());
+  }
+  
   String toStr(){
     return String.format("%s, %s", pos.toStr(), size.toStr());
   }
