@@ -33,24 +33,28 @@ class Point {
 
 class Box {
   Point pos, size;
+  Box(){
+    pos = new Point(0, 0);
+    size = new Point(1, 1);
+  }
   Box(float x, float y, float w, float h){
     pos = new Point(x, y);
     size = new Point(w, h);
     //updateGeometry();
   }
   Box(Point _pos, Point _size){
-    pos = _pos;
-    size = _size;
+    pos = _pos.copy();
+    size = _size.copy();
     //updateGeometry();
   }
   Box(Point _pos, float w, float h){
-    pos = _pos;
+    pos = _pos.copy();
     size = new Point(w, h);
     //updateGeometry();
   }
   Box(float x, float y, Point _size){
     pos = new Point(x, y);
-    size = _size;
+    size = _size.copy();
     //updateGeometry();
   }
   Box(Box _b){
@@ -93,6 +97,23 @@ class Box {
   
   void setAspectRatioH(float ar){
     setHeight(getWidth() / ar);
+  }
+  
+  void translate(float dx, float dy){
+    pos.x += dx;
+    pos.y += dy;
+  }
+  
+  void translate(Point p){
+    translate(p.x, p.y);
+  }
+  
+  void setBox(Box b){
+    pos.x = b.pos.x;
+    pos.y = b.pos.y;
+    size.x = b.size.x;
+    size.y = b.size.y;
+    updateGeometry();
   }
   
   Point getPos(){
@@ -158,7 +179,7 @@ class Box {
   }
   void setBottom(float b){
     pos.y = b - getHeight();
-    assert getBottom() == b;
+    //assert getBottom() == b;
     updateGeometry();
   }
   
@@ -167,7 +188,7 @@ class Box {
   }
   void setHCenter(float c){
     pos.x = c - getWidth() / 2;
-    assert getHCenter() == c;
+    //assert getHCenter() == c;
     updateGeometry();
   }
   
@@ -240,34 +261,101 @@ class Box {
     canvas.rect(getX(), getY(), getWidth(), getHeight());
   }
   
+  void drawImage(PGraphics canvas, PImage img){
+    canvas.image(img, getX(), getY(), getWidth(), getHeight());
+  }
+  
   void fillRect(PShape canvas, color c){
     canvas.fill(c);
   }
   
-  void fillVGradient(PShape canvas, color c1, color c2) {
-    int x = getX(), y = getY(), w = getWidth(), h = getHeight();
-    //canvas.noFill();
-    for (int i = y; i <= y+h; i++) {
-      float inter = map(i, y, y+h, 0, 1);
+  PImage fillVGradient(color c1, color c2){
+    PImage img = new PImage(int(round(getWidth())), int(round(getHeight())), ARGB);
+    fillVGradient(img, c1, c2);
+    return img;
+  }
+  
+  void fillVGradient(PShape shape, color c1, color c2){
+    int w = int(round(getWidth())), h = int(round(getHeight()));
+    PImage img = new PImage(w, h, ARGB);
+    fillVGradient(img, c1, c2);
+    shape.setTextureMode(IMAGE);
+    shape.setTexture(img);
+    String s = "{ ";
+    for (int i=0; i<shape.getVertexCount(); i++){
+      PVector vt = shape.getVertex(i);
+      s = s + String.format("(vt: [%s, %s], u=%s, v=%s), ", vt.x, vt.y, shape.getTextureU(i), shape.getTextureV(i));
+    }
+    println(s+"}");
+  }
+  
+  void fillVGradient(PImage img, color c1, color c2) {
+    img.loadPixels();
+    if (img.width != getWidth() || img.height != getHeight()){
+      img.init((int)getWidth(), (int)getHeight(), ARGB);
+    }
+    int i = 0, w = img.width, h = img.height;
+    for (int y=0; y<h; y++) {
+      float inter = float(y) / float(h);
       color c = lerpColor(c1, c2, inter);
-      canvas.stroke(c);
-      canvas.line(x, i, x+w, i);
+      for (int x=0; x<w; x++){
+        img.pixels[i] = c;
+        i += i;
+      }
+    }
+    img.updatePixels();
+  }
+  
+  PImage fillHGradient(color c1, color c2){
+    PImage img = new PImage(int(round(getWidth())), int(round(getHeight())), ARGB);
+    fillHGradient(img, c1, c2);
+    return img;
+  }
+  
+  void fillHGradient(PImage img, color c1, color c2) {
+    int i = 0, w = img.width, h = img.height;
+    for (int x=0; x<w; x++) {
+      float inter = x / float(w);
+      color c = lerpColor(c1, c2, inter);
+      for (int y=0; y<h; y++) {
+        i = y * w + x;
+        img.pixels[i] = 0;
+      }
+      i += i;
     }
   }
   
-  void fillHGradient(PShape canvas, color c1, color c2){
-    int x = getX(), y = getY(), w = getWidth(), h = getHeight();
-    //canvas.noFill();
-    for (int i = x; i <= x+w; i++) {
-      float inter = map(i, x, x+w, 0, 1);
-      color c = lerpColor(c1, c2, inter);
-      canvas.stroke(c);
-      canvas.line(i, y, i, y+h);
-    }
-  }
+  //void fillHGradient(PShape canvas, color c1, color c2){
+  //  //int x = getX(), y = getY(), w = getWidth(), h = getHeight();
+  //  float x = getX(), y = getY(), w = getWidth(), h = getHeight();
+  //  //canvas.noFill();
+  //  for (int i = int(round(x)); i <= x+w; i++) {
+  //    float inter = map(i, x, x+w, 0, 1);
+  //    color c = lerpColor(c1, c2, inter);
+  //    canvas.stroke(c);
+  //    canvas.line(i, y, i, y+h);
+  //  }
+  //}
   
-  PShape buildRect(PApplet canvas){
-    return canvas.createShape(RECT, getX(), getY(), getWidth(), getHeight());
+  PShape buildRect(PApplet applet){
+    //PShape rect = applet.createShape(RECT, getX(), getY(), getWidth(), getHeight());
+    float x = pos.x, y = pos.y, w = size.x, h = size.y;
+    //Box shapeBox = copy();
+    //shapeBox.translate(-x, -y);
+    PShape s = applet.createShape(RECT, 0, 0, w, h);
+    //s.beginShape(RECT);
+    ////s.vertex(-0.5, -0.5, 0, 0, 0);
+    ////s.vertex(-0.5,  0.5, 0, 0, 1);
+    ////s.vertex( 0.5,  0.5, 0, 1, 1);
+    ////s.vertex( 0.5, -0.5, 0, 1, 0);
+    //s.vertex(  x,   y, 0, 0);
+    //s.vertex(  x, y+h, 0, y);
+    //s.vertex(x+w, y+w, x, y);
+    //s.vertex(x+w,   y, x, 0);
+    //s.endShape();
+    ////s.scale(getWidth(), getHeight());
+    //s.translate(getX(), getY());
+    return s;
   }
   
   String toStr(){

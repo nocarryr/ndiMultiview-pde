@@ -7,9 +7,15 @@ class TextBox extends Box {
   private int hAlign, vAlign;
   private int bgColor, fgColor;
   public String text;
+  public boolean drawBackground = true;
   private Point textPos;
   private boolean textPosOverride;
   private int textSize;
+  
+  TextBox(){
+    super();
+    initDefaults();
+  }
   
   TextBox(Point _pos, Point _size, String _text, int _hAlign, int _vAlign, int _textSize, int _bg, int _fg){
     super(_pos, _size);
@@ -86,6 +92,12 @@ class TextBox extends Box {
     updateGeometry();
   }
   
+  int getHAlign(){ return hAlign; }
+  int getVAlign(){ return vAlign; }
+  
+  int getTextSize(){ return textSize; }
+  void setTextSize(int value){ textSize = value; }
+  
   Point getTextPos(){
     return textPos.copy();
   }
@@ -130,10 +142,12 @@ class TextBox extends Box {
   }
   
   void render(PGraphics canvas){
-    canvas.fill(bgColor);
-    //canvas.noStroke();
-    canvas.stroke(128);
-    canvas.rect(getX(), getY(), getWidth(), getHeight());
+    if (drawBackground){
+      canvas.fill(bgColor);
+      //canvas.noStroke();
+      canvas.stroke(128);
+      canvas.rect(getX(), getY(), getWidth(), getHeight());
+    }
     canvas.fill(fgColor);
     canvas.textFont(mvApp.windowFont);
     canvas.textSize(textSize);

@@ -6,7 +6,7 @@ class Window {
   String name = "";
   int col,row;
   Point padding;
-  Box boundingBox, frameBox;
+  Box boundingBox, frameBox, meterBox;
   String ndiSourceName = "";
   int numFrames = 0, numDraws = 0;
   long droppedFrames = 0;
@@ -89,6 +89,8 @@ class Window {
     System.out.println(String.format("%s bBox: %s, frame: %s", getId(), boundingBox.toStr(), frameBox.toStr()));
 
     frameHandler = new FrameHandler();
+    meterBox = calcMeterBox();
+    frameHandler.audio.meter.setBoundingBox(meterBox);
 
     controls = new WindowControls(this);
   }
@@ -105,12 +107,27 @@ class Window {
     b.setCenter(boundingBox.getCenter());
     return b;
   }
+  
+  Box calcMeterBox(){
+    //float w = 0.5 * frameHandler.audio.nChannels;
+    Box b = frameBox.copy();
+    b.setHeight(frameBox.getHeight()*.8);
+    b.setWidth(frameBox.getWidth()*.125);
+    b.setX(frameBox.getX()+3);
+    b.setVCenter(frameBox.getVCenter());
+    return b;
+  }
 
   void setBoundingBox(Box _boundingBox){
     boundingBox = _boundingBox;
     frameBox = calcFrameBox();
     nameLabel.setBottomCenter(frameBox.getBottomCenter());
     formatLabel.setTopCenter(frameBox.getTopCenter());
+    synchronized(frameHandler.audio){
+      meterBox = calcMeterBox();
+      frameHandler.audio.meter.setBoundingBox(meterBox);
+      frameHandler.audio.meterChanged = false;
+    }
     controls.initControls();
   }
 
@@ -222,7 +239,15 @@ class Window {
       frameHandler.audio.meter.peakDbfs[0], frameHandler.audio.meter.peakAmp[0], frameHandler.audio.meter.rmsDbfs[0],
       frameHandler.audio.meter.blockSize, frameHandler.audio.meter.bufferLength[0], frameHandler.audio.stride, frameHandler.audio.meter.nChannels
     );
-    statsLabel.render(canvas);
+    //statsLabel.render(canvas);
+    if (frameHandler.audio.meterChanged){
+      synchronized(frameHandler.audio){
+        meterBox = calcMeterBox();
+        frameHandler.audio.meter.setBoundingBox(meterBox);
+        frameHandler.audio.meterChanged = false;
+      }
+    }
+    frameHandler.audio.meter.render(canvas);
   }
 }
 

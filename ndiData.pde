@@ -436,18 +436,25 @@ class NDIAudioHandler {
   FrameHandler parent;
   int sampleRate, nChannels, blockSize, stride;
   private boolean initialized = false;
+  boolean meterChanged = false;
   AudioMeter meter;
   NDIAudioHandler(FrameHandler _parent){
     parent = _parent;
     initialized = false;
-    meter = new AudioMeter(1, 1, 1);
+    meter = new AudioMeter(1, 2, 1);
   }
   
   void setInitData(DevolayAudioFrame frame){
     sampleRate = frame.getSampleRate();
     nChannels = frame.getChannels();
     blockSize = frame.getSamples();
-    meter = new AudioMeter(sampleRate, nChannels, blockSize);
+    //Box bbox = meter.boundingBox.copy();
+    synchronized(this){
+      meter = new AudioMeter(sampleRate, nChannels, blockSize);
+      meterChanged = true;
+    }
+    //meter.boundingBox = bbox;
+    //setMeterChanged(true);
   }
   
   void processFrame(){
@@ -462,174 +469,6 @@ class NDIAudioHandler {
   }
 }
 
-double NINF = Double.NEGATIVE_INFINITY;
-
-class AudioMeter {  
-  double[] rmsDbfs, rmsDbu, peakDbfs, peakDbu, peakAmp;
-  int sampleRate, nChannels, blockSize, stride;
-  float avgTime = .1;
-  int[] bufferLength;
-  float[] ticks = {0, -6, -12, -18, -24, -36, -48, -60, -90, -200};
-  Box boundingBox;
-  Box[] channelBoxes;
-  AudioMeterChannel[] meterChannels;
-  AudioMeter(int fs, int nch, int _blockSize){
-    boundingBox = new Box(0, 0, 20, 20);
-    sampleRate = fs;
-    nChannels = nch;
-    blockSize = _blockSize;
-    rmsDbfs = new double[nChannels];
-    rmsDbu = new double[nChannels];
-    peakDbfs = new double[nChannels];
-    peakDbu = new double[nChannels];
-    peakAmp = new double[nChannels];
-    bufferLength = new int[nChannels];
-    meterChannels = new AudioMeterChannel[nChannels];
-    for (int i=0; i<nChannels; i++){
-      rmsDbfs[i] = NINF;
-      rmsDbu[i] = NINF;
-      peakDbfs[i] = NINF;
-      peakDbu[i] = NINF;
-      peakAmp[i] = 0;
-      bufferLength[i] = 0;
-      meterChannels[i] = new AudioMeterChannel(this, i);
-      Box b = boundingBox.copy();
-      b.setWidth(boundingBox.getWidth() / nChannels);
-      b.setX(b.getWidth() * i + boundingBox.getX());
-      meterChannels[i].setBoundingBox(b);
-    }
-  }
-  
-  void setBoundingBox(Box b){
-    boundingBox = b.copy();
-    
-    for (int i=0; i<nChannels; i++){
-      b.setWidth(boundingBox.getWidth() / nChannels);
-      b.setX(b.getWidth() * i + boundingBox.getX());
-      meterChannels[i].setBoundingBox(b);
-    }
-  }
-  
-  void render(PGraphics canvas){
-    for (int i=0; i<nChannels; i++){
-      meterChannels[i].render(canvas);
-    }
-  }
-  
-  void processSamples(DevolayAudioFrame frame){
-    int size = frame.getSamples();
-    int stride = frame.getChannelStride();
-    int nch = frame.getChannels();
-    ByteBuffer data = frame.getData().order(ByteOrder.LITTLE_ENDIAN);
-    double[] chPeaks = new double[nch];
-    double[] chSums = new double[nch];
-    for (int i=0; i<nch; i++){
-      chPeaks[i] = 0;
-      chSums[i] = 0;
-    }
-    
-    for (int ch=0; ch<nch; ch++){
-      for (int samp=0; samp<size; samp++){
-        Float vf = data.getFloat();
-        double v = vf.doubleValue();
-        
-        double vabs = Math.abs(v);
-        if (vabs > chPeaks[ch]){
-          chPeaks[ch] = vabs;
-        }
-        v *= .1;
-        chSums[ch] += v * v;
-      }
-    }
-    
-    for (int ch=0; ch<nch; ch++){
-      double vabs = chPeaks[ch] * .1;
-      peakAmp[ch] = vabs;
-      peakDbfs[ch] = 10 * Math.log10(vabs);
-      peakDbu[ch] = peakDbfs[ch] + 24;
-      double mag = Math.sqrt(chSums[ch] / size);
-      if (mag == 0){
-        rmsDbfs[ch] = NINF;
-      } else {
-        rmsDbfs[ch] = 10 * Math.log10(mag);
-        rmsDbu[ch] = rmsDbfs[ch] + 24;
-      }
-      bufferLength[ch] = size;
-    }
-  }
-}
-    
-class AudioMeterChannel {
-  AudioMeter parent;
-  Box boundingBox;
-  int index;
-  float greenStop = -12, yellowStart = -6, redStart = -3;
-  color greenBg = 0xff008000, yellowBg = 0xffffff00, redBg = 0xffff0000;
-  PShape greenRect, yellowRect, redRect;
-  Box greenBox, greenYellowBox, yellowRedBox;
-  AudioMeterChannel(AudioMeter _parent, int _index){
-    parent = _parent;
-    index = _index;
-    boundingBox = new Box(0, 0, 10, 10);
-    buildGradientBoxes();
-  }
-  
-  void setBoundingBox(Box b){
-    boundingBox = b;
-    buildGradientBoxes();
-  }
-  
-  void buildGradientBoxes(){
-    float greenPos = dbToYPos(greenStop), 
-          yellowPos = dbToYPos(yellowStart), 
-          redPos = dbToYPos(redStart);
-    Box baseBox = boundingBox.copy();
-    greenBox = baseBox.copy();
-    greenBox.setHeight(greenPos);
-    greenBox.setBottom(baseBox.getBottom());
-    greenRect = greenBox.buildRect(mvApp);
-    greenRect.fill(greenBg);
-    
-    yellowRedBox = baseBox.copy();
-    yellowRedBox.setHeight(redPos);
-    yellowRedBox.setY(baseBox.getY());
-    redRect = yellowRedBox.buildRect(mvApp);
-    yellowRedBox.fillVGradient(redRect, yellowBg, greenBg);
-    
-    greenYellowBox = baseBox.copy();
-    greenYellowBox.setHeight(greenBox.getY() - yellowRedBox.getBottom());
-    greenYellowBox.setBottom(greenBox.getY());
-    yellowRect = greenYellowBox.buildRect(mvApp);
-    greenYellowBox.fillVGradient(yellowRect, yellowBg, greenBg);
-  }
-  
-  float dbToYPos(double dbVal){
-    //float dbMin = Math.min(parent.ticks);
-    //float dbMax = Math.max(parent.ticks);
-    double dbMax = parent.ticks[0];
-    double dbMin = parent.ticks[parent.ticks.length-1];
-    double dbScale = Math.abs(dbMax - dbMin);
-    if (dbVal == NINF){
-      return boundingBox.getBottom();
-    }
-    double h = boundingBox.getHeight(), bottom = boundingBox.getBottom();
-    
-    dbVal = (dbVal - dbMin);
-    double result = dbVal / dbScale * h + bottom;
-    return (float)result;
-  }
-  
-  void render(PGraphics canvas){
-    canvas.noStroke();
-    //canvas.fill(green);
-    //greenBox.fill(canvas);
-    //greenYellowBox.fillVGradient(canvas, green, yellow);
-    //yellowRedBox.fillVGradient(canvas, yellow, green);
-    greenRect.draw(canvas);
-    yellowRect.draw(canvas);
-    redRect.draw(canvas);
-  }
-}
 
 class FrameThread extends Thread {
   FrameHandler handler;
