@@ -441,7 +441,7 @@ class NDIAudioHandler {
   NDIAudioHandler(FrameHandler _parent){
     parent = _parent;
     initialized = false;
-    meter = new AudioMeter(1, 2, 1);
+    meter = new AudioMeter(1, 4, 1);
   }
   
   void setInitData(DevolayAudioFrame frame){

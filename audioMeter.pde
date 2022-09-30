@@ -10,6 +10,8 @@ class AudioMeter {
   float maxTick = 0;
   float minTick = -70;
   int nTickContainers;
+  int maxChannels = 2;
+  int channelOffset = 0;
   Box boundingBox;
   Box[] channelBoxes;
   MeterTickContainer[] tickContainers;
@@ -26,13 +28,11 @@ class AudioMeter {
     peakAmp = new double[nChannels];
     bufferLength = new int[nChannels];
     
-    float tickWidth = boundingBox.getWidth() / (nChannels / 2); 
+    float tickWidth = boundingBox.getWidth() / (maxChannels / 2); 
     float channelWidth = tickWidth / 3;
-    tickContainers = new MeterTickContainer[int(nChannels / 2)];
-    meterChannels = new AudioMeterChannel[nChannels];
+    tickContainers = new MeterTickContainer[int(maxChannels / 2)];
+    meterChannels = new AudioMeterChannel[maxChannels];
     
-    nTickContainers = 0;
-    int tickIdx = -1;
     for (int i=0; i<nChannels; i++){
       rmsDbfs[i] = NINF;
       rmsDbu[i] = NINF;
@@ -40,6 +40,11 @@ class AudioMeter {
       peakDbu[i] = NINF;
       peakAmp[i] = 0;
       bufferLength[i] = 0;
+    }
+    
+    nTickContainers = 0;
+    int tickIdx = -1;
+    for (int i=0; i<maxChannels; i++){
       if (i % 2 == 0){
         tickIdx += 1;
         MeterTickContainer tickContainer = new MeterTickContainer(this);
@@ -71,7 +76,7 @@ class AudioMeter {
   
   void setBoundingBox(Box b){
     boundingBox = b.copy();
-    float tickWidth = boundingBox.getWidth() / (nChannels / 2); 
+    float tickWidth = boundingBox.getWidth() / (maxChannels / 2); 
     float channelWidth = tickWidth / 3;
     for (int i=0; i<nTickContainers; i++){
       Box t = b.copy();
@@ -79,7 +84,7 @@ class AudioMeter {
       t.setX(tickWidth * i + (channelWidth * (i % 2)) + b.getX());
       tickContainers[i].setBox(t);
     }
-    for (int i=0; i<nChannels; i++){
+    for (int i=0; i<maxChannels; i++){
       b.setWidth(channelWidth);
       b.setX(channelWidth * i * 2 + boundingBox.getX());
       meterChannels[i].setBoundingBox(b);
@@ -114,7 +119,7 @@ class AudioMeter {
     for (int i=0; i<nTickContainers; i++){
       tickContainers[i].render(canvas);
     }
-    for (int i=0; i<nChannels; i++){
+    for (int i=0; i<maxChannels; i++){
       meterChannels[i].render(canvas);
     }
   }
@@ -191,7 +196,9 @@ class AudioMeterChannel {
     
   }
   
-  
+  int channelIndex(){
+    return index + parent.channelOffset;
+  }
   
   void buildImages(){
     for (int i=0; i<bgImgs.length; i++){
@@ -207,34 +214,6 @@ class AudioMeterChannel {
     //alphaGradient(bgImgs[0], 0, 1, 0, 1);
     //alphaGradient(bgImgs[1], 0, 1, 0, 1);
     //alphaGradient(bgImgs[2], 0, 1, 0, 1);
-  }
-  
-  void alphaGradient(PImage img, float fromPos, float toPos, float fromValue, float toValue){
-    int w = img.width, h = img.height;
-    int fromPxl = int(fromPos * h),
-        toPxl = int(round(toPos * h));
-    if (toPxl > h){
-      toPxl = h;
-    }
-    assert fromPxl < toPxl;
-    float imgScale = toPxl - fromPxl,
-          minV = Math.min(fromValue, toValue),
-          maxV = Math.max(fromValue, toValue),
-          valueScale = maxV - minV;
-    //float valueScale = float(Math.max(fromValue, toValue)) / float(Math.min(fromValue, toValue));
-    
-    img.loadPixels();
-    for (int y=fromPxl; y<toPxl; y++){
-      int alpha = int(round((y - fromPxl) / imgScale * valueScale));
-      alpha = (alpha & 0xff) << 24;
-      for (int x=0; x<w; x++){
-        int i = y * w + x;
-        int colorValue = img.pixels[i];
-        colorValue |= alpha;
-        img.pixels[i] = colorValue;
-      }
-    }
-    img.updatePixels();
   }
   
   void fillVGradient(PImage img, color c1, color c2) {
@@ -309,110 +288,46 @@ class AudioMeterChannel {
     //yellowRedBox.setBottom(greenYellowBox.getY());
     //yellowRedBox.setY(baseBox.getY());
     bgBoxes[2] = yellowRedBox;
-    
-    ////for (int i=0; i<bgBoxes.length; i++){
-    ////  Box bx = bgBoxes[i];
-    ////  bgImgs[i].init(int(round(bx.getWidth())), int(round(bx.getHeight())), ARGB);
-    ////}
-    
-    ////greenYellowBox = new Box(
-    ////  baseBox.getX(), yellowPos, baseBox.getWidth(), greenPos - yellowPos
-    ////);
-    
-    
-    ////greenBox.setBottom(baseBox.getBottom());
-    ////println("gr: ", greenBox.toStr());
-    //greenRect = greenBox.buildRect(mvApp);
-    //greenRect.setFill(greenBg);
-    
-    
-    ////yellowRedBox.setY(baseBox.getY());
-    ////println("yl: ", yellowRedBox.toStr());
-    //redRect = yellowRedBox.buildRect(mvApp);
-    //yellowRedBox.fillVGradient(bgImgs[2], redBg, yellowBg);
-    ////redRect.setTexture(bgImgs[0]);
-    ////redRect.setTexture(bgImgs[2]);
-    //redRect.setFill(0);
-    
-    ////greenYellowBox = baseBox.copy();
-    ////float gyHeight = boundingBox.getHeight() - greenRect.getHeight() - yellowRedBox.getHeight();
-    ////greenYellowBox.setHeight(gyHeight);
-    ////println("greenYellowBox.height: ", gyHeight);
-    
-    ////greenYellowBox.setBottom(greenBox.getY());
-    ////println("gy: ", greenYellowBox.toStr());
-    //yellowRect = greenYellowBox.buildRect(mvApp);
-    //greenYellowBox.fillVGradient(bgImgs[1], greenBg, yellowBg);
-    ////yellowRect.setTexture(bgImgs[0]);
-    ////yellowRect.setTexture(bgImgs[1]);
-    //yellowRect.setFill(yellowBg);
-    
-    //bgShapes[0] = greenRect;
-    //bgShapes[1] = yellowRect;
-    //bgShapes[2] = redRect;
-    
-    //Point offset = boundingBox.getPos();
-    ////for (int i=0; i<bgBoxes.length; i++){
-    ////  bgBoxes[i].translate(offset);
-    ////}
   }
   
   float dbToYPos(double dbVal){
     return parent.dbToYPos(dbVal);
-    //double dbMax = parent.maxTick;
-    //double dbMin = parent.minTick;
-    //double dbScale = Math.abs(dbMax - dbMin);
-    //if (dbVal == NINF){
-    //  return boundingBox.getBottom();
-    //}
-    //float h = boundingBox.getHeight();
-    
-    //double pos = dbVal / dbScale;
-    //return (float)pos * -h;
   }
   
   float dbToYPos(double dbVal, boolean withOffset){
     return parent.dbToYPos(dbVal, withOffset);
-    //float result = dbToYPos(dbVal);
-    //if (withOffset){
-    //  result += boundingBox.getY();
-    //}
-    //return result;
   }
   
   void render(PGraphics canvas){
     canvas.stroke(255);
     canvas.fill(0);
-    //greenBox.drawRect(canvas);
-    //greenYellowBox.drawRect(canvas);
-    //yellowRedBox.drawRect(canvas);
-    //canvas.noStroke();
-    //canvas.fill(green);
-    //greenBox.fill(canvas);
-    //greenYellowBox.fillVGradient(canvas, green, yellow);
-    //yellowRedBox.fillVGradient(canvas, yellow, green);
+    
     for (int i=0; i<bgShapes.length; i++){
-      //canvas.stroke(bgColors[i]);
       Box b = bgBoxes[i];
-      //b.drawRect(canvas);
-      PImage img = bgImgs[i];
-      //b.drawImage(canvas, img);
-      canvas.image(img, b.getX(), b.getY(), b.getWidth(), b.getHeight());
-      //PShape s = bgShapes[i];
-      //s.setStroke(255);
-      //canvas.shape(s, b.getX(), b.getY());
-      //canvas.shape(s, 0, 0);
+      canvas.image(bgImgs[i], b.getX(), b.getY(), b.getWidth(), b.getHeight());
     }
-    //greenRect.draw(canvas);
-    //yellowRect.draw(canvas);
-    //redRect.draw(canvas);
-    meterBox.setHeight(parent.dbToYPos(parent.rmsDbfs[index], false));
-    //println(String.format("meterBox: %s, boundingBox: %s", meterBox.toStr(), boundingBox.toStr()));
-    //println(String.format("mHeight=%s, mBottom=%s, bbBotom=%s", meterBox.getHeight(), meterBox.getBottom(), boundingBox.getBottom()));
-    assert round(meterBox.getBottom()) <= round(boundingBox.getBottom());
+    
+    int chIdx = channelIndex();
+    
+    // mask over the meter images making them dark above RMS level
+    meterBox.setHeight(parent.dbToYPos(parent.rmsDbfs[chIdx], false));
     canvas.noStroke();
     canvas.fill(0xa0000000);
     meterBox.drawRect(canvas);
+    
+    
+    double peakDbfs = parent.peakDbfs[chIdx];
+    float peakY = dbToYPos(peakDbfs, true);
+    color peakColor;
+    if (peakDbfs <= greenStop){
+      peakColor = greenBg;
+    } else if (peakDbfs < redStart){
+      peakColor = yellowBg;
+    } else {
+      peakColor = redBg;
+    }
+    canvas.stroke(peakColor);
+    canvas.line(boundingBox.getX(), peakY, boundingBox.getRight(), peakY);
     
   }
 }

@@ -240,14 +240,14 @@ class Window {
       frameHandler.audio.meter.blockSize, frameHandler.audio.meter.bufferLength[0], frameHandler.audio.stride, frameHandler.audio.meter.nChannels
     );
     //statsLabel.render(canvas);
-    if (frameHandler.audio.meterChanged){
-      synchronized(frameHandler.audio){
+    synchronized(frameHandler.audio){
+      if (frameHandler.audio.meterChanged){
         meterBox = calcMeterBox();
         frameHandler.audio.meter.setBoundingBox(meterBox);
         frameHandler.audio.meterChanged = false;
       }
+      frameHandler.audio.meter.render(canvas);
     }
-    frameHandler.audio.meter.render(canvas);
   }
 }
 
