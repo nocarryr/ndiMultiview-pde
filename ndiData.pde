@@ -14,7 +14,7 @@ class FrameHandler {
   DevolayVideoFrame videoFrame;
   DevolayAudioFrame audioFrame;
   DevolayMetadataFrame metadataFrame;
-  
+
   int nextWriteIndex = 0, nextReadIndex = -1;
   NDIImageHandler[] images;
   NDIAudioHandler audio;
@@ -22,9 +22,9 @@ class FrameHandler {
   ReentrantReadWriteLock rwLock;
   Lock rLock;
   Lock wLock;
-  
+
   private boolean _isOpen = false;
-  
+
   FrameHandler(){
     stateLockObj = new Object();
     rwLock = new ReentrantReadWriteLock();
@@ -44,7 +44,7 @@ class FrameHandler {
     assert writeQueue.size() == images.length - 1;
     //open();
   }
-  
+
   public void open(){
     if (_isOpen){
       return;
@@ -54,7 +54,7 @@ class FrameHandler {
     frameThread.start();
     _isOpen = true;
   }
-  
+
   public void close(){
     if (!_isOpen){
       return;
@@ -70,11 +70,11 @@ class FrameHandler {
     disconnect();
     _isOpen = false;
   }
-  
+
   public boolean isOpen(){
     return _isOpen;
   }
-  
+
   NDIImageHandler getNextReadImage(){
     rLock.lock();
     NDIImageHandler result = null;
@@ -97,7 +97,7 @@ class FrameHandler {
     }
     return result;
   }
-  
+
   private void fillWriteQueue(){
     wLock.lock();
     try {
@@ -119,7 +119,7 @@ class FrameHandler {
       wLock.unlock();
     }
   }
-  
+
   NDIImageHandler getNextWriteImage(){
     wLock.lock();
     NDIImageHandler result = null;
@@ -140,7 +140,7 @@ class FrameHandler {
     }
     return result;
   }
-  
+
   void setImageWriteComplete(NDIImageHandler img){
     wLock.lock();
     try {
@@ -159,7 +159,7 @@ class FrameHandler {
       wLock.unlock();
     }
   }
-  
+
   private void resetQueues(){
     wLock.lock();
     try {
@@ -176,7 +176,7 @@ class FrameHandler {
       wLock.unlock();
     }
   }
-  
+
   private void notifyConnected(){
     if (!maybeConnected){
       return;
@@ -187,7 +187,7 @@ class FrameHandler {
       }
     }
   }
-  
+
   public void connectToSource(DevolaySource source){
     if (source == null && !maybeConnected){
       return;
@@ -197,7 +197,7 @@ class FrameHandler {
       _connectToSource(source);
     }
   }
-  
+
   private void _connectToSource(DevolaySource source){
     if (ndiReceiver != null){
       resetQueues();
@@ -214,7 +214,7 @@ class FrameHandler {
       notifyConnected();
       return;
     }
-    
+
     if (source == null){
       maybeConnected = false;
       sourceName = "";
@@ -240,13 +240,13 @@ class FrameHandler {
     }
     notifyConnected();
   }
-  
+
   public void disconnect(){
     synchronized(stateLockObj){
       _disconnect();
     }
   }
-  
+
   private void _disconnect(){
     if (ndiReceiver != null){
       ndiReceiver.close();
@@ -275,7 +275,7 @@ class FrameHandler {
     maybeConnected = false;
     resetQueues();
   }
-  
+
   boolean isConnected(){
    if (sourceName == ""){
      maybeConnected = false;
@@ -292,9 +292,9 @@ class FrameHandler {
    maybeConnected = true;
    return true;
   }
-  
+
   DevolayFrameType getFrame(int timeout) {
-    
+
     DevolayFrameType frameType = DevolayFrameType.NONE;
     //try {
       //frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, metadataFrame, timeout);
@@ -332,7 +332,7 @@ class NDIImageHandler implements PConstants{
   Lock wLock;
   boolean writeReady = true, readReady = true, isBlank = true;
   int numRenders;
-  
+
   NDIImageHandler(FrameHandler _parent, int _index){
     parent = _parent;
     index = _index;
@@ -343,7 +343,7 @@ class NDIImageHandler implements PConstants{
     wLock = rwLock.writeLock();
     numRenders = 0;
   }
-  
+
   int getWidth(){ return (int)resolution.x; }
   int getHeight(){ return (int)resolution.y; }
   void setWidth(float w){ resolution.x = w; }
@@ -352,7 +352,7 @@ class NDIImageHandler implements PConstants{
     resolution.x = w;
     resolution.y = h;
   }
-  
+
   boolean drawToCanvas(PGraphics canvas, Box dims){
     boolean acquired = wLock.tryLock();
     if (!acquired){
@@ -378,7 +378,7 @@ class NDIImageHandler implements PConstants{
     }
     return true;
   }
-  
+
   boolean setImagePixels(DevolayVideoFrame videoFrame){
     //println("setImagePixels");
     boolean result = false;
@@ -400,13 +400,13 @@ class NDIImageHandler implements PConstants{
     //parent.incrementWriteIndex();
     return result;
   }
-  
+
   boolean _setImagePixels(DevolayVideoFrame videoFrame){
     int frameWidth = videoFrame.getXResolution();
     int frameHeight = videoFrame.getYResolution();
     DevolayFrameFourCCType fourCC = videoFrame.getFourCCType();
     assert (fourCC == DevolayFrameFourCCType.RGBA || fourCC == DevolayFrameFourCCType.RGBX);
-    
+
     if (frameWidth == 0 || frameHeight == 0){
       System.out.println("frameSize = 0");
       setResolution(0, 0);
@@ -421,7 +421,7 @@ class NDIImageHandler implements PConstants{
       assert image.pixels.length == getWidth() * getHeight();
     }
     assert videoFrame.getLineStride() == frameWidth * 4;
-    
+
     if (fourCC == DevolayFrameFourCCType.RGBA){
       videoFrameToImageArr_RGBA(videoFrame, image.pixels);
     } else {
@@ -443,7 +443,7 @@ class NDIAudioHandler {
     initialized = false;
     meter = new AudioMeter(1, 4, 1);
   }
-  
+
   void setInitData(DevolayAudioFrame frame){
     sampleRate = frame.getSampleRate();
     nChannels = frame.getChannels();
@@ -456,7 +456,7 @@ class NDIAudioHandler {
     //meter.boundingBox = bbox;
     //setMeterChanged(true);
   }
-  
+
   void processFrame(){
     DevolayAudioFrame frame = parent.audioFrame;
     if (!initialized){
@@ -477,7 +477,7 @@ class FrameThread extends Thread {
   FrameThread(FrameHandler _handler){
     handler = _handler;
   }
-  
+
   public void run(){
     println("FrameThread run start");
     running = true;
@@ -490,7 +490,7 @@ class FrameThread extends Thread {
                 handler.stateLockObj.wait();
               }
             } catch (InterruptedException e) {
-              
+
             }
           }
           //println("first wait complete");
@@ -504,7 +504,7 @@ class FrameThread extends Thread {
         //println("getting frame");
         DevolayFrameType ft = handler.getFrame(100);
         //println(ft);
-        switch (ft){  
+        switch (ft){
           case VIDEO:
             NDIImageHandler img = null;
             //println("locking");
@@ -522,7 +522,7 @@ class FrameThread extends Thread {
               }
             }
             break;
-            
+
           case AUDIO:
             handler.audio.processFrame();
             break;
@@ -542,9 +542,9 @@ void videoFrameToImageArr_RGBA(DevolayVideoFrame videoFrame, int[] pixelArray){
   int frameHeight = videoFrame.getYResolution();
   ByteBuffer framePixels = videoFrame.getData();
   IntBuffer framePixelsInt = framePixels.asIntBuffer();
-  
+
   int numPixels = frameWidth * frameHeight;
-  
+
   for (int i=0; i<numPixels; i++){
     int colorValue = framePixelsInt.get();
     int alpha = colorValue & 0xff;
@@ -558,10 +558,10 @@ void videoFrameToImageArr_RGBX(DevolayVideoFrame videoFrame, int[] pixelArray){
   int frameHeight = videoFrame.getYResolution();
   ByteBuffer framePixels = videoFrame.getData();
   IntBuffer framePixelsInt = framePixels.asIntBuffer();
-  
+
   int numPixels = frameWidth * frameHeight;
   int alphaMask = 0xff << 24;
-  
+
   for (int i=0; i<numPixels; i++){
     pixelArray[i] = (framePixelsInt.get() >> 8) | alphaMask;
   }

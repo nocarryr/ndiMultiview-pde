@@ -1,6 +1,6 @@
 double NINF = Double.NEGATIVE_INFINITY;
 
-class AudioMeter {  
+class AudioMeter {
   double[] rmsDbfs, rmsDbu, peakDbfs, peakDbu, peakAmp;
   int sampleRate, nChannels, blockSize, stride;
   float avgTime = .1;
@@ -27,12 +27,12 @@ class AudioMeter {
     peakDbu = new double[nChannels];
     peakAmp = new double[nChannels];
     bufferLength = new int[nChannels];
-    
-    float tickWidth = boundingBox.getWidth() / (maxChannels / 2); 
+
+    float tickWidth = boundingBox.getWidth() / (maxChannels / 2);
     float channelWidth = tickWidth / 3;
     tickContainers = new MeterTickContainer[int(maxChannels / 2)];
     meterChannels = new AudioMeterChannel[maxChannels];
-    
+
     for (int i=0; i<nChannels; i++){
       rmsDbfs[i] = NINF;
       rmsDbu[i] = NINF;
@@ -41,7 +41,7 @@ class AudioMeter {
       peakAmp[i] = 0;
       bufferLength[i] = 0;
     }
-    
+
     nTickContainers = 0;
     int tickIdx = -1;
     for (int i=0; i<maxChannels; i++){
@@ -68,15 +68,15 @@ class AudioMeter {
       //} else {
       //  b.setRight(tickContainers[tickIdx].getRight());
       //}
-        
+
       //b.setX(b.getWidth() * i + boundingBox.getX());
       meterChannels[i].setBoundingBox(b);
     }
   }
-  
+
   void setBoundingBox(Box b){
     boundingBox = b.copy();
-    float tickWidth = boundingBox.getWidth() / (maxChannels / 2); 
+    float tickWidth = boundingBox.getWidth() / (maxChannels / 2);
     float channelWidth = tickWidth / 3;
     for (int i=0; i<nTickContainers; i++){
       Box t = b.copy();
@@ -90,7 +90,7 @@ class AudioMeter {
       meterChannels[i].setBoundingBox(b);
     }
   }
-  
+
   float dbToYPos(double dbVal){
     double dbMax = maxTick;
     double dbMin = minTick;
@@ -99,11 +99,11 @@ class AudioMeter {
     if (dbVal == NINF){
       return h;
     }
-    
+
     double pos = dbVal / dbScale;
     return (float)pos * -h;
   }
-  
+
   float dbToYPos(double dbVal, boolean withOffset){
     float result = dbToYPos(dbVal);
     if (withOffset){
@@ -111,7 +111,7 @@ class AudioMeter {
     }
     return result;
   }
-  
+
   void render(PGraphics canvas){
     canvas.noFill();
     canvas.stroke(128);
@@ -123,7 +123,7 @@ class AudioMeter {
       meterChannels[i].render(canvas);
     }
   }
-  
+
   void processSamples(DevolayAudioFrame frame){
     int size = frame.getSamples();
     int stride = frame.getChannelStride();
@@ -135,12 +135,12 @@ class AudioMeter {
       chPeaks[i] = 0;
       chSums[i] = 0;
     }
-    
+
     for (int ch=0; ch<nch; ch++){
       for (int samp=0; samp<size; samp++){
         Float vf = data.getFloat();
         double v = vf.doubleValue();
-        
+
         double vabs = Math.abs(v);
         if (vabs > chPeaks[ch]){
           chPeaks[ch] = vabs;
@@ -149,7 +149,7 @@ class AudioMeter {
         chSums[ch] += v * v;
       }
     }
-    
+
     for (int ch=0; ch<nch; ch++){
       double vabs = chPeaks[ch] * .1;
       peakAmp[ch] = vabs;
@@ -166,7 +166,7 @@ class AudioMeter {
     }
   }
 }
-    
+
 class AudioMeterChannel {
   AudioMeter parent;
   Box boundingBox;
@@ -191,15 +191,15 @@ class AudioMeterChannel {
     bgBoxes = new Box[3];
     buildImages();
     buildGradientBoxes();
-    
+
     //Box b = new Box(0, 0, 20, 10);
-    
+
   }
-  
+
   int channelIndex(){
     return index + parent.channelOffset;
   }
-  
+
   void buildImages(){
     for (int i=0; i<bgImgs.length; i++){
       bgImgs[i] = new PImage(50, 100, ARGB);
@@ -215,7 +215,7 @@ class AudioMeterChannel {
     //alphaGradient(bgImgs[1], 0, 1, 0, 1);
     //alphaGradient(bgImgs[2], 0, 1, 0, 1);
   }
-  
+
   void fillVGradient(PImage img, color c1, color c2) {
     //img.loadPixels();
     //int i = 0, w = img.width;
@@ -249,7 +249,7 @@ class AudioMeterChannel {
     assert img.pixels.length == w*h;
     img.updatePixels();
   }
-  
+
   void setBoundingBox(Box b){
     boundingBox = b.copy();
     meterBox = b.copy();
@@ -260,28 +260,28 @@ class AudioMeterChannel {
       throw(e);
     }
   }
-  
+
   void buildGradientBoxes(){
     float bottomPos = dbToYPos(-90, true),
-          greenPos = dbToYPos(greenStop, true), 
-          yellowPos = dbToYPos(yellowStart, true), 
+          greenPos = dbToYPos(greenStop, true),
+          yellowPos = dbToYPos(yellowStart, true),
           redPos = dbToYPos(redStart, true),
           topPos = dbToYPos(0, true);
     //assert dbToYPos(0, true) == boundingBox.getY();
     //assert dbToYPos(-90, true) == boundingBox.getBottom();
     Box baseBox = boundingBox.copy();
     //baseBox.setPos(new Point(0, 0));
-    
+
     greenBox = baseBox.copy();
     greenBox.setHeight(baseBox.getBottom() - greenPos);
     greenBox.setY(greenPos);
     bgBoxes[0] = greenBox;
-    
+
     greenYellowBox = baseBox.copy();
     greenYellowBox.setHeight(greenPos - yellowPos);
     greenYellowBox.setBottom(greenPos);
     bgBoxes[1] = greenYellowBox;
-    
+
     yellowRedBox = baseBox.copy();
     yellowRedBox.setHeight(yellowPos - topPos);
     yellowRedBox.setY(topPos);
@@ -289,33 +289,33 @@ class AudioMeterChannel {
     //yellowRedBox.setY(baseBox.getY());
     bgBoxes[2] = yellowRedBox;
   }
-  
+
   float dbToYPos(double dbVal){
     return parent.dbToYPos(dbVal);
   }
-  
+
   float dbToYPos(double dbVal, boolean withOffset){
     return parent.dbToYPos(dbVal, withOffset);
   }
-  
+
   void render(PGraphics canvas){
     canvas.stroke(255);
     canvas.fill(0);
-    
+
     for (int i=0; i<bgShapes.length; i++){
       Box b = bgBoxes[i];
       canvas.image(bgImgs[i], b.getX(), b.getY(), b.getWidth(), b.getHeight());
     }
-    
+
     int chIdx = channelIndex();
-    
+
     // mask over the meter images making them dark above RMS level
     meterBox.setHeight(parent.dbToYPos(parent.rmsDbfs[chIdx], false));
     canvas.noStroke();
     canvas.fill(0xa0000000);
     meterBox.drawRect(canvas);
-    
-    
+
+
     double peakDbfs = parent.peakDbfs[chIdx];
     float peakY = dbToYPos(peakDbfs, true);
     color peakColor;
@@ -328,7 +328,7 @@ class AudioMeterChannel {
     }
     canvas.stroke(peakColor);
     canvas.line(boundingBox.getX(), peakY, boundingBox.getRight(), peakY);
-    
+
   }
 }
 
@@ -347,14 +347,14 @@ class MeterTickContainer extends Box {
     setPos(meter.boundingBox.getPos());
     setSize(meter.boundingBox.getSize());
   }
-  
+
   void updateGeometry(){
     super.updateGeometry();
     for (int i=0; i<tickLabels.length; i++){
       tickLabels[i].calcTickPosition();
     }
   }
-  
+
   void render(PGraphics canvas){
     canvas.noStroke();
     canvas.fill(bgColor);
@@ -370,7 +370,7 @@ class TickLabel extends TextBox {
   AudioMeter meter;
   float dbValue;
   float realTickPos;
-  
+
   TickLabel(MeterTickContainer _parent, float _dbValue){
     super();
     parent = _parent;
@@ -389,7 +389,7 @@ class TickLabel extends TextBox {
     setAlign(CENTER, v);
     calcTickPosition();
   }
-  
+
   void calcTickPosition(){
     setWidth(parent.getWidth());
     setX(parent.getX());
@@ -407,7 +407,7 @@ class TickLabel extends TextBox {
     }
     setHCenter(parent.getHCenter());
   }
-  
+
   void render(PGraphics canvas){
     super.render(canvas);
     //canvas.stroke(255);

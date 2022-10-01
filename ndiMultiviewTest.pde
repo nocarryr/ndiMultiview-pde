@@ -14,7 +14,7 @@ import controlP5.*;
 MultiviewApplet mvApp;
 PFont baseWindowFont;
 int confSaveInterval = 60;
-float resizeCheckInterval = .25; 
+float resizeCheckInterval = .25;
 boolean baseloopInitial = true;
 float sourceUpdateTimeInterval = 10;
 ControlP5 basecp5;
@@ -45,7 +45,7 @@ void setup(){
   String[] args = {"--sketch-path="+sketchPath(), "NDI Multiviewer"};
   mvApp = new MultiviewApplet();
   PApplet.runSketch(args, mvApp);
-  
+
   basecp5 = new ControlP5(this);
   baseWindowFont = createFont("Georgia", 12);
   size(200, 100);
@@ -64,10 +64,10 @@ void setup(){
 
 void draw(){
   background(0);
-  
+
   Textlabel lbl = (Textlabel)basecp5.getController("appSizeLbl");
   lbl.setText(String.format("(%d, %d)", (int)mvApp.width, (int)mvApp.height));
-  
+
   String txt0 = String.format("Base  fps=%d, frame=%06d", (int)frameRate, (int)frameCount);
   String txt1 = String.format("mvApp fps=%d, frame=%06d", (int)mvApp.frameRate, (int)mvApp.frameCount);
   textAlign(RIGHT, TOP);
@@ -123,7 +123,7 @@ public class MultiviewApplet extends PApplet {
       size((int)config.app.canvasSize.x, (int)config.app.canvasSize.y, P3D);
     }
   }
-  
+
   public void setFullScreen(boolean value){
     if (value == isFullScreen){
       return;
@@ -131,7 +131,7 @@ public class MultiviewApplet extends PApplet {
     isFullScreen = value;
     saveConfig();
   }
-  
+
   StringList getDisplays(){
     GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
     GraphicsDevice defaultDevice = ge.getDefaultScreenDevice();
@@ -147,15 +147,15 @@ public class MultiviewApplet extends PApplet {
     }
     return result;
   }
-  
+
   public void closeBtn(int value){
     exit();
   }
-  
+
   public void fullScreenToggle(boolean value){
     setFullScreen(value);
   }
-  
+
   public void setup(){
     this.surface.setResizable(true);
     this.frameRate(60);
@@ -166,7 +166,7 @@ public class MultiviewApplet extends PApplet {
        .setLabel("Close")
        .setPosition(btnBox.getX(), btnBox.getY())
        .setSize((int)btnBox.getWidth(), (int)btnBox.getHeight());
-       
+
     btnBox.setRight(btnBox.getX() - 10);
     cp5.addButton("fullScreenToggle")
        .setLabel("Fullscreen")
@@ -174,7 +174,7 @@ public class MultiviewApplet extends PApplet {
        .setSize((int)btnBox.getWidth(), (int)btnBox.getHeight())
        .setValue(config.app.fullScreen ? 1 : 0)
        .setSwitch(true);
-       
+
     windowFont = createFont("Georgia", 12, true);
     ndiSourceArray = new DevolaySource[0];
     ndiSources = new HashMap<String,DevolaySource>();
@@ -197,7 +197,7 @@ public class MultiviewApplet extends PApplet {
     windowGrid.render(g);
     loopInitial = false;
   }
-  
+
   void checkResize(){
     //int frInterval = secondsToFrame(resizeCheckInterval);
     if ((int)frameCount % 120 != 0){
@@ -206,18 +206,18 @@ public class MultiviewApplet extends PApplet {
     if ((int)this.width != windowGrid.outWidth || (int)this.height != windowGrid.outHeight){
       println("resize canvas");
       cp5.setGraphics(this, 0, 0);
-      
+
       Box btnBox = new Box(0, 0, 40, 20);
       btnBox.setRight(width);
       Button btn = (Button)cp5.getController("closeBtn");
       btn.setPosition(btnBox.getX(), btnBox.getY())
          .setSize((int)btnBox.getWidth(), (int)btnBox.getHeight());
-      
+
       btnBox.setRight(btnBox.getX() - 10);
       btn = (Button)cp5.getController("fullScreenToggle");
       btn.setPosition(btnBox.getX(), btnBox.getY())
          .setSize((int)btnBox.getWidth(), (int)btnBox.getHeight());
-       
+
       windowGrid.setOutputSize((int)this.width, (int)this.height);
       saveConfig();
     }
@@ -228,7 +228,7 @@ public class MultiviewApplet extends PApplet {
     System.out.println("saveConfig: " + confFile.getAbsolutePath());
     saveJSONObject(json, confFile.getPath());
   }
-  
+
   void saveConfig(Config c){
     try {
       JSONObject json = c.serialize();
@@ -238,12 +238,12 @@ public class MultiviewApplet extends PApplet {
       throw(e);
     }
   }
-  
+
   void saveConfig(){
     config.update(this);
     saveConfig(config);
   }
-  
+
   void confAutoSave(){
     if (nextConfSaveFrame == -1 || frameCount >= nextConfSaveFrame){
       //windowBounds = getWindowDims();
@@ -253,14 +253,14 @@ public class MultiviewApplet extends PApplet {
       nextConfSaveFrame = frameCount + secondsToFrame(confSaveInterval);
     }
   }
-  
+
   Box getWindowDims(){
     PSurfaceAWT.SmoothCanvas nativeWin = (PSurfaceAWT.SmoothCanvas)this.surface.getNative();
     java.awt.Rectangle bBox = nativeWin.getFrame().getBounds();
     Box b = new Box(bBox.x, bBox.y, bBox.width, bBox.height);
     return b;
   }
-  
+
   void updateNdiSources(){
     if (sourcesUpdated){
       System.out.println("sourcesUpdated");
@@ -273,13 +273,13 @@ public class MultiviewApplet extends PApplet {
     }
     thread("_updateNDISources");
   }
-  
+
   void _updateNDISources() {
     System.out.println("updateNdiSources");
     int timeout = 8000;
     int maxTries = 5;
     updatingSources = true;
-    
+
     //DevolayFinder finder = new DevolayFinder();
     DevolayFinder finder = ndiFinder;
     int numAttempts = 0;
@@ -316,7 +316,7 @@ public class MultiviewApplet extends PApplet {
     }
     return (int)(fr * sec);
   }
-  
+
   float frameToSeconds(int f){
     float fr = this.frameRate;
     if (fr == 0){

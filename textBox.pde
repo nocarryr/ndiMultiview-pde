@@ -11,12 +11,12 @@ class TextBox extends Box {
   private Point textPos;
   private boolean textPosOverride;
   private int textSize;
-  
+
   TextBox(){
     super();
     initDefaults();
   }
-  
+
   TextBox(Point _pos, Point _size, String _text, int _hAlign, int _vAlign, int _textSize, int _bg, int _fg){
     super(_pos, _size);
     initDefaults();
@@ -39,7 +39,7 @@ class TextBox extends Box {
     fgColor = _fg;
     //updateGeometry();
   }
-  
+
   TextBox(Point _pos, Point _size) {
     super(_pos, _size);
     initDefaults();
@@ -55,7 +55,7 @@ class TextBox extends Box {
     initDefaults();
     //updateGeometry();
   }
-  
+
   void initDefaults(){
     textPosOverride = false;
     text = "";
@@ -67,14 +67,14 @@ class TextBox extends Box {
     textPos = new Point(0, 0);
     updateGeometry();
   }
-      
-  
+
+
   //@Override
   TextBox copy(){
     Box b = new Box(this);
     return new TextBox(b, text, hAlign, vAlign, textSize, bgColor, fgColor);
   }
-  
+
   void setAlign(int _hAlign){
     if (_hAlign == hAlign){
       return;
@@ -82,7 +82,7 @@ class TextBox extends Box {
     hAlign = _hAlign;
     updateGeometry();
   }
-  
+
   void setAlign(int _hAlign, int _vAlign){
     if (_hAlign == hAlign && _vAlign == vAlign){
       return;
@@ -91,32 +91,32 @@ class TextBox extends Box {
     vAlign = _vAlign;
     updateGeometry();
   }
-  
+
   int getHAlign(){ return hAlign; }
   int getVAlign(){ return vAlign; }
-  
+
   int getTextSize(){ return textSize; }
   void setTextSize(int value){ textSize = value; }
-  
+
   Point getTextPos(){
     return textPos.copy();
   }
-  
+
   void setTextPos(Point p){
     setTextPos(p.x, p.y);
   }
-  
+
   void setTextPos(float x, float y){
     textPos.x = x;
     textPos.y = y;
     textPosOverride = true;
   }
-  
+
   void setTextPosRelative(Point p){
     Point offset = getPos();
     setTextPos(p.x + offset.x, p.y + offset.y);
   }
-  
+
   void updateGeometry(){
     super.updateGeometry();
     if (textPosOverride){
@@ -130,7 +130,7 @@ class TextBox extends Box {
     } else if (hAlign == RIGHT){
       _textPos.x = getRight();
     }
-    
+
     if (vAlign == TOP){
       _textPos.y = getY();
     } else if (vAlign == CENTER){
@@ -140,7 +140,7 @@ class TextBox extends Box {
     }
     textPos = _textPos;
   }
-  
+
   void render(PGraphics canvas){
     if (drawBackground){
       canvas.fill(bgColor);
@@ -154,10 +154,9 @@ class TextBox extends Box {
     canvas.textAlign(hAlign, vAlign);
     canvas.text(text, textPos.x, textPos.y);
   }
-  
+
   String toStr(){
     String s = super.toStr();
     return String.format("TextBox '%s': text='%s', textPos=%s, bgColor=%d, fgColor=%d", s, text, textPos.toStr(), bgColor, fgColor);
   }
 }
-  

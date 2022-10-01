@@ -51,7 +51,7 @@ class Window {
     ndiSourceName = json.getString("ndiSourceName");
     init();
   }
-  
+
   Window(WindowConfig config, Box _boundingBox, Point _padding){
     name = config.name;
     col = config.col;
@@ -61,7 +61,7 @@ class Window {
     ndiSourceName = config.ndiSourceName;
     init();
   }
-  
+
   JSONObject serialize(){
     JSONObject json = new JSONObject();
     json.setInt("col", col);
@@ -76,16 +76,16 @@ class Window {
     nameLabel = new TextBox(frameBox.getTopLeft(), 100, 18);
     formatLabel = new TextBox(frameBox.getTopLeft(), 260, 18);
     statsLabel = new TextBox(frameBox.getTopLeft(), 200, 60);
-    
+
     nameLabel.setBottomCenter(frameBox.getBottomCenter());
     nameLabel.setAlign(CENTER, BOTTOM);
-    
+
     formatLabel.setTopCenter(frameBox.getTopCenter());
     formatLabel.setAlign(CENTER, TOP);
-    
+
     statsLabel.setBottomLeft(frameBox.getBottomLeft());
     statsLabel.setAlign(LEFT, BOTTOM);
-    
+
     System.out.println(String.format("%s bBox: %s, frame: %s", getId(), boundingBox.toStr(), frameBox.toStr()));
 
     frameHandler = new FrameHandler();
@@ -107,7 +107,7 @@ class Window {
     b.setCenter(boundingBox.getCenter());
     return b;
   }
-  
+
   Box calcMeterBox(){
     //float w = 0.5 * frameHandler.audio.nChannels;
     Box b = frameBox.copy();
@@ -134,11 +134,11 @@ class Window {
   String getId(){
     return String.format("%02d-%02d", col, row);
   }
-  
+
   void setName(String _name){
     setName(_name, true);
   }
-  
+
   void setName(String _name, boolean updateControls){
     System.out.println("setName: '" + _name + "'");
     if (_name == name){
@@ -183,7 +183,7 @@ class Window {
           src = mvApp.ndiSources.get(ndiSourceName);
         }
       }
-      
+
       frameHandler.connectToSource(src);
       maybeConnected = frameHandler.maybeConnected;
       if (maybeConnected){
@@ -191,7 +191,7 @@ class Window {
       }
     }
   }
-  
+
   void close(){
     frameHandler.close();
     maybeConnected = false;
@@ -231,8 +231,8 @@ class Window {
     //formatLabel.text = String.format("%02d", imgIdx);
     //formatLabel.text = String.format("%dx%d", srcWidth, srcHeight);
     formatLabel.render(canvas);
-    //statsLabel.text = String.format("maxRenders: %d, imgIdx: %d\ninFlight: %d / %d\nwriteQueue: %d, readQueue: %d", 
-    //  frameHandler.maxRenders, imgIdx, frameHandler.inFlight, frameHandler.maxInFlight, 
+    //statsLabel.text = String.format("maxRenders: %d, imgIdx: %d\ninFlight: %d / %d\nwriteQueue: %d, readQueue: %d",
+    //  frameHandler.maxRenders, imgIdx, frameHandler.inFlight, frameHandler.maxInFlight,
     //  frameHandler.writeQueue.size(), frameHandler.readQueue.size()
     //);
     statsLabel.text = String.format("peak: %5.1f, amplitude: %08.6f\nrms:  %5.1f dB\nblockSize: %s, bfrLen: %s\n stride: %d, nChannels: %d",
@@ -259,7 +259,7 @@ class WindowControls {
   Button editNameBtn;
   boolean editNameEnabled = false;
   Textfield editNameField;
-  
+
   WindowControls(Window _win){
     win = _win;
     winId = _win.getId();
@@ -269,7 +269,7 @@ class WindowControls {
   void initControls(){
     initControls(false);
   }
-  
+
   void initControls(boolean create){
     if (!controlsCreated && !create){
       return;
@@ -282,7 +282,7 @@ class WindowControls {
     } else {
       setWidgetPos(sourceDropdown, ddPos);
     }
-    
+
     String editNameBtnId = winId + "-editNameBtn";
     String editNameFieldId = winId + "-editNameField";
     Box editNameBtnBox = new Box(win.nameLabel);
@@ -300,31 +300,31 @@ class WindowControls {
     }
     controlsCreated = true;
   }
-  
+
   Controller setWidgetPos(Controller widget, Point pos){
     widget.setPosition(pos.x, pos.y);
     return widget;
   }
-  
+
   Controller setWidgetPos(Controller widget, Box b){
     return setWidgetPos(widget, b.getPos());
   }
-  
+
   Controller setWidgetSize(Controller widget, Point size){
     widget.setSize((int)size.x, (int)size.y);
     return widget;
   }
-  
+
   Controller setWidgetSize(Controller widget, Box b){
     return setWidgetSize(widget, b.getSize());
   }
-  
+
   Controller setWidgetBox(Controller widget, Box b){
     setWidgetPos(widget, b);
     setWidgetSize(widget, b);
     return widget;
   }
-  
+
   void updateFieldValues(){
     if (controlsCreated){
       updateDropdownItems();
@@ -373,7 +373,7 @@ class WindowControls {
     setWidgetPos(sourceDropdown, pos);
     updateDropdownItems();
   }
-  
+
   void buildEditNameControls(String btnId, Box btnBox, String txtFieldId, Box txtBox){
     editNameBtn = mvApp.cp5.addButton(btnId)
                      .setLabel("Edit Name")
@@ -381,7 +381,7 @@ class WindowControls {
                      .setSwitch(true)
                      .plugTo(this, "onEditNameBtn");
     setWidgetBox(editNameBtn, btnBox);
-    
+
     editNameField = mvApp.cp5.addTextfield(txtFieldId)
                        .setText(win.name)
                        .setVisible(false)
@@ -389,7 +389,7 @@ class WindowControls {
                        .plugTo(this, "onEditNameField");
     setWidgetBox(editNameField, txtBox);
   }
-  
+
   void onSourceDropdown(int idx){
     if (sourceDropdown.isOpen()){
       Map<String,Object> item = sourceDropdown.getItem(idx);
@@ -402,7 +402,7 @@ class WindowControls {
       sourceDropdown.close();
     }
   }
-  
+
   void onEditNameBtn(boolean btnOn){
     if (editNameEnabled != btnOn){
       editNameEnabled = btnOn;
@@ -413,7 +413,7 @@ class WindowControls {
       }
     }
   }
-  
+
   void onEditNameField(String txtValue){
     if (editNameField.isVisible() && editNameEnabled){
         win.setName(txtValue, false);

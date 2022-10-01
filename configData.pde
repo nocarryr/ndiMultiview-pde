@@ -4,16 +4,16 @@ import java.lang.reflect.InvocationTargetException;
 
 class ConfigBase{
   HashMap<String,String> _fieldMap;
-  
+
   ConfigBase(JSONObject json){
     _getFieldMap();
     setValuesFromJSON(json);
   }
-  
+
   ConfigBase(){
     _getFieldMap();
   }
-  
+
   void setValuesFromJSON(JSONObject json){
     for (Map.Entry<String,String> entry : _fieldMap.entrySet()){
       String className = entry.getValue();
@@ -32,8 +32,8 @@ class ConfigBase{
       //  e.printStackTrace();
       //  continue;
       //}
-      
-      
+
+
       Object value = getValueFromJSON(className, isarr, entry.getKey(), json);
       try {
         Field f = this.getClass().getDeclaredField(entry.getKey());
@@ -49,10 +49,10 @@ class ConfigBase{
       }
     }
   }
-  
+
   Object getValueFromJSON(String className, boolean isarr, String fieldName, JSONObject json){
     //try {
-      
+
     Object value;
     if (className == "int"){
       //f.setInt(this, json.getInt(fieldName));
@@ -72,7 +72,7 @@ class ConfigBase{
     }
     return value;
   }
-  
+
   JSONObject serialize(){
     JSONObject json = new JSONObject();
     for (Map.Entry<String,String> entry : _fieldMap.entrySet()){
@@ -99,7 +99,7 @@ class ConfigBase{
     }
     return json;
   }
-  
+
   void setJSONValue(String className, boolean isarr, String fieldName, Object value, JSONObject json){
     if (value instanceof ConfigBase){
       try {
@@ -138,7 +138,7 @@ class ConfigBase{
       throw(new Error(String.format("could not set value '%s' for field '%s' (className='%s'), cls=%s", value, fieldName, className, this.getClass())));
     }
   }
-  
+
   void _getFieldMap(){
     _fieldMap = new HashMap<String,String>();
   }
@@ -149,19 +149,19 @@ class ConfigBase{
 class Config extends ConfigBase {
   AppConfig app;
   GridConfig windowGrid;
-  
+
   Config(JSONObject json){ super(json); }
   Config(){
     super();
     app = new AppConfig();
     windowGrid = new GridConfig();
   }
-  
+
   void update(MultiviewApplet applet){
     app.update(applet);
     windowGrid.update(applet);
   }
-  
+
   Object getValueFromJSON(String className, boolean isarr, String fieldName, JSONObject json){
     if (className == "AppConfig"){
       return new AppConfig(json.getJSONObject(fieldName));
@@ -175,7 +175,7 @@ class Config extends ConfigBase {
   //  if (className == "AppConfig"){
   //    AppConfig c = (AppConfig)value;
   //    json.setJSONObject(fieldName, c.
-  
+
   void _getFieldMap(){
     _fieldMap = new HashMap<String,String>();
     _fieldMap.put("app", "AppConfig");
@@ -188,7 +188,7 @@ class AppConfig extends ConfigBase {
   int displayNumber;
   Point canvasSize;
   Box windowBounds;
-  
+
   AppConfig(JSONObject json){ super(json); }
   AppConfig(){
     super();
@@ -197,13 +197,13 @@ class AppConfig extends ConfigBase {
     canvasSize = new Point(640, 360);
     windowBounds = new Box(0, 0, 640, 360);
   }
-  
+
   void update(MultiviewApplet applet){
     fullScreen = applet.isFullScreen;
     canvasSize = new Point(applet.width, applet.height);
     //windowBounds = applet.getWindowDims();
   }
-  
+
   void _getFieldMap(){
     _fieldMap = new HashMap<String,String>();
     _fieldMap.put("fullScreen", "boolean");
@@ -218,7 +218,7 @@ class GridConfig extends ConfigBase {
   Point padding;
   Point outputSize;
   WindowConfig[] windows;
-  
+
   GridConfig(JSONObject json){ super(json); }
   GridConfig(){
     super();
@@ -248,11 +248,11 @@ class GridConfig extends ConfigBase {
   void update(MultiviewApplet applet){
     update(applet.windowGrid);
   }
-  
+
   void update(WindowGrid grid){
     setValuesFromJSON(grid.serialize());
   }
-  
+
   Object getValueFromJSON(String className, boolean isarr, String fieldName, JSONObject json){
     if (className.startsWith("WindowConfig")){
       JSONArray jsonArr = json.getJSONArray(fieldName);
@@ -265,7 +265,7 @@ class GridConfig extends ConfigBase {
       return super.getValueFromJSON(className, isarr, fieldName, json);
     }
   }
-  
+
   void setJSONValue(String className, boolean isarr, String fieldName, Object value, JSONObject json){
     if (className.startsWith("WindowConfig")){
       JSONArray _json = new JSONArray();
@@ -277,7 +277,7 @@ class GridConfig extends ConfigBase {
       super.setJSONValue(className, isarr, fieldName, value, json);
     }
   }
-  
+
   void _getFieldMap(){
     _fieldMap = new HashMap<String,String>();
     _fieldMap.put("cols", "int");
@@ -290,12 +290,12 @@ class GridConfig extends ConfigBase {
 
 //class WindowConfigs extends ConfigBase {
 //  WindowConfig[] windows;
-  
+
 //}
 class WindowConfig extends ConfigBase {
   String name, ndiSourceName;
   int col, row;
-  
+
   WindowConfig(JSONObject json){ super(json); }
   WindowConfig(){
     super();
@@ -304,7 +304,7 @@ class WindowConfig extends ConfigBase {
     col = 0;
     row = 0;
   }
-  
+
   void _getFieldMap(){
     _fieldMap = new HashMap<String,String>();
     _fieldMap.put("name", "String");

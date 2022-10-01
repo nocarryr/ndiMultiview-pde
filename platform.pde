@@ -51,7 +51,7 @@ File getUserConfigDir(){
       dirNames.append(System.getenv("LOCALAPPDATA"));
       break;
     case UNKNOWN:
-    
+
   }
   return new File(joinPath(dirNames), "ndiMultiview");
 }

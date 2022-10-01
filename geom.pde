@@ -1,31 +1,32 @@
+
 class Point {
   float x, y;
   Point(float _x, float _y){
     x = _x;
     y = _y;
   }
-  
+
   Point(JSONObject json){
     x = json.getFloat("x");
     y = json.getFloat("y");
   }
-  
+
   JSONObject serialize(){
     JSONObject json = new JSONObject();
     json.setFloat("x", x);
     json.setFloat("y", y);
     return json;
   }
-  
+
   Point copy(){
     return new Point(x, y);
   }
-  
+
   void add(Point other){
     x += other.x;
     y += other.y;
   }
-   
+
   String toStr(){
     return String.format("(%f, %f)", x, y);
   }
@@ -66,48 +67,48 @@ class Box {
     pos = new Point(json.getJSONObject("pos"));
     size = new Point(json.getJSONObject("size"));
   }
-  
+
   JSONObject serialize(){
     JSONObject json = new JSONObject();
     json.setJSONObject("pos", pos.serialize());
     json.setJSONObject("size", size.serialize());
     return json;
   }
-  
+
   Box copy(){
     return new Box(this);
   }
-  
+
   void move(Point dxy){
     pos.add(dxy);
     //setPos(pos.add(dxy));
   }
-  
+
   float getAspectRatioW(){
     return getHeight() / getWidth();
   }
-  
+
   void setAspectRatioW(float ar){
     setWidth(getHeight() / ar);
   }
-  
+
   float getAspectRatioH(){
     return getWidth() / getHeight();
   }
-  
+
   void setAspectRatioH(float ar){
     setHeight(getWidth() / ar);
   }
-  
+
   void translate(float dx, float dy){
     pos.x += dx;
     pos.y += dy;
   }
-  
+
   void translate(Point p){
     translate(p.x, p.y);
   }
-  
+
   void setBox(Box b){
     pos.x = b.pos.x;
     pos.y = b.pos.y;
@@ -115,7 +116,7 @@ class Box {
     size.y = b.size.y;
     updateGeometry();
   }
-  
+
   Point getPos(){
     return pos.copy();
   }
@@ -124,7 +125,7 @@ class Box {
     pos.y = p.y;
     updateGeometry();
   }
-  
+
   Point getSize(){
     return size.copy();
   }
@@ -133,7 +134,7 @@ class Box {
     size.y = s.y;
     updateGeometry();
   }
-  
+
   float getX(){
     return pos.x;
   }
@@ -141,7 +142,7 @@ class Box {
     pos.x = x;
     updateGeometry();
   }
-  
+
   float getY(){
     return pos.y;
   }
@@ -149,7 +150,7 @@ class Box {
     pos.y = y;
     updateGeometry();
   }
-  
+
   float getWidth(){
     return size.x;
   }
@@ -157,7 +158,7 @@ class Box {
     size.x = w;
     updateGeometry();
   }
-  
+
   float getHeight(){
     return size.y;
   }
@@ -165,7 +166,7 @@ class Box {
     size.y = h;
     updateGeometry();
   }
-  
+
   float getRight(){
     return pos.x + getWidth();
   }
@@ -173,7 +174,7 @@ class Box {
     pos.x = r - getWidth();
     updateGeometry();
   }
-  
+
   float getBottom(){
     return pos.y + getHeight();
   }
@@ -182,7 +183,7 @@ class Box {
     //assert getBottom() == b;
     updateGeometry();
   }
-  
+
   float getHCenter(){
     return pos.x + getWidth() / 2;
   }
@@ -191,7 +192,7 @@ class Box {
     //assert getHCenter() == c;
     updateGeometry();
   }
-  
+
   float getVCenter(){
     return pos.y + getHeight() / 2;
   }
@@ -199,7 +200,7 @@ class Box {
     pos.y = c - getHeight() / 2;
     updateGeometry();
   }
-  
+
   Point getCenter(){
     return new Point(getHCenter(), getVCenter());
   }
@@ -208,7 +209,7 @@ class Box {
     pos.y = c.y - getHeight() / 2;
     updateGeometry();
   }
-  
+
   Point getTopLeft(){
     return new Point(getX(), getY());
   }
@@ -220,7 +221,7 @@ class Box {
     pos.y = p.y;
     updateGeometry();
   }
-  
+
   Point getTopRight(){
     return new Point(getRight(), getY());
   }
@@ -237,7 +238,7 @@ class Box {
     pos.x = p.x;
     pos.y = p.y - getHeight();
   }
-  
+
   Point getBottomCenter(){
     return new Point(getHCenter(), getBottom());
   }
@@ -246,29 +247,29 @@ class Box {
     pos.y = p.y - getHeight();
     updateGeometry();
   }
-  
+
   Point getBottomRight(){
     return new Point(getRight(), getBottom());
   }
-  
+
   float getTotalArea(){
     return getWidth() * getHeight();
   }
-  
+
   void updateGeometry(){ }
-  
+
   void drawRect(PGraphics canvas){
     canvas.rect(getX(), getY(), getWidth(), getHeight());
   }
-  
+
   void drawImage(PGraphics canvas, PImage img){
     canvas.image(img, getX(), getY(), getWidth(), getHeight());
   }
-  
+
   void fillRect(PShape canvas, color c){
     canvas.fill(c);
   }
-  
+
   String toStr(){
     return String.format("%s, %s", pos.toStr(), size.toStr());
   }
