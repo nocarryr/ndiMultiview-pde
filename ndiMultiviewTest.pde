@@ -175,7 +175,7 @@ public class MultiviewApplet extends PApplet {
        .setValue(config.app.fullScreen ? 1 : 0)
        .setSwitch(true);
 
-    windowFont = createFont("Georgia", 12, true);
+    windowFont = createFont("FiraCode-Regular.ttf", 36);
     ndiSourceArray = new DevolaySource[0];
     ndiSources = new HashMap<String,DevolaySource>();
     System.out.println("loadingLibraries...");
