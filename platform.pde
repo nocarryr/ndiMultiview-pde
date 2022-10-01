@@ -18,8 +18,13 @@ Platform getPlatform(){
 String joinPath(StringList args){
   StringList parts = new StringList();
   //for (int i=0; i<args.size(); i++){
+  int i = 0;
+  boolean isAbsolute = false;
   for (String s : args){
     //String s = args[i];
+    if (i == 0 && s.startsWith("/")){
+      isAbsolute = true;
+    }
     if (s.contains("/")){
       for (String _s : s.split("/")){
         if (_s.length() > 0){
@@ -29,8 +34,13 @@ String joinPath(StringList args){
     } else if (s.length() > 0){
       parts.append(s);
     }
+    i += 1;
   }
-  return parts.join("/");
+  String result = parts.join("/");
+  if (isAbsolute){
+    result = "/" + result;
+  }
+  return result;
 }
 File getUserConfigDir(){
   StringList dirNames = new StringList();
