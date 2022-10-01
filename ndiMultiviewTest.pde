@@ -42,7 +42,7 @@ Config getConfig(){
 
 
 void setup(){
-  String[] args = {"NDI Multiviewer"};
+  String[] args = {"--sketch-path="+sketchPath(), "NDI Multiviewer"};
   mvApp = new MultiviewApplet();
   PApplet.runSketch(args, mvApp);
   

@@ -40,13 +40,16 @@ File getUserConfigDir(){
     case LINUX:
       //dirNames.append(System.getenv("HOME"));
       dirNames.append(".config");
+      break;
     case MAC:
       //dirNames.append(System.getenv("HOME"));
       dirNames.append("Library");
       dirNames.append("Preferences");
+      break;
     case WINDOWS:
       dirNames.clear();
       dirNames.append(System.getenv("LOCALAPPDATA"));
+      break;
     case UNKNOWN:
     
   }

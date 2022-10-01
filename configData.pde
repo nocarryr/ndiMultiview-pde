@@ -235,6 +235,8 @@ class GridConfig extends ConfigBase {
         w.col = x;
         w.row = y;
         w.name = windowNames[i];
+        windows[i] = w;
+        i += 1;
       }
     }
     //update(mvApp.windowGrid);
