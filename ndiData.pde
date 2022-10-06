@@ -8,6 +8,11 @@ class FrameHandler {
   long numFrames = 0, droppedFrames = 0, totalFrames = 0;
   int maxRenders, inFlight, maxInFlight;
   String sourceName = "";
+  DevolayFrameFormatType formatType;
+  Point videoResolution;
+  boolean fielded = false;
+  String formatString = "No Signal";
+  int frNumerator = 0, frDenominator = 1;
   Deque<Integer> readQueue, writeQueue;
   FrameThread frameThread;
   DevolayReceiver ndiReceiver;
@@ -33,6 +38,7 @@ class FrameHandler {
     maxRenders = 0;
     inFlight = 0;
     maxInFlight = 0;
+    videoResolution = new Point(0, 0);
     readQueue = new ArrayDeque<Integer>();
     writeQueue = new ArrayDeque<Integer>();
     images = new NDIImageHandler[4];
@@ -223,7 +229,7 @@ class FrameHandler {
     println("create ndiReceiver");
     connecting = true;
     try {
-      ndiReceiver = new DevolayReceiver(source, DevolayReceiver.ColorFormat.RGBX_RGBA, DevolayReceiver.RECEIVE_BANDWIDTH_HIGHEST, false, null);
+      ndiReceiver = new DevolayReceiver(source, DevolayReceiver.ColorFormat.RGBX_RGBA, DevolayReceiver.RECEIVE_BANDWIDTH_HIGHEST, true, null);
       videoFrame = new DevolayVideoFrame();
       audioFrame = new DevolayAudioFrame();
       metadataFrame = new DevolayMetadataFrame();
@@ -274,6 +280,7 @@ class FrameHandler {
     maxInFlight = 0;
     maybeConnected = false;
     resetQueues();
+    updateVideoFormat();
   }
 
   boolean isConnected(){
@@ -293,17 +300,72 @@ class FrameHandler {
    return true;
   }
 
+  void updateVideoFormat(){
+    if (videoFrame == null || !maybeConnected){
+      formatType = null;
+      videoResolution = new Point(0, 0);
+      updateFormatString();
+      return;
+    }
+    boolean changed = false;
+    DevolayFrameFormatType ftype = videoFrame.getFormatType();
+    boolean _fielded = ftype != DevolayFrameFormatType.PROGRESSIVE;
+    if (_fielded != fielded){
+      fielded = _fielded;
+      changed = true;
+    }
+    if (ftype != formatType){
+      formatType = ftype;
+      //changed = true;
+    }
+    Point res = new Point(videoFrame.getXResolution(), videoFrame.getYResolution());
+    if (!(videoResolution.equals(res))){
+      changed = true;
+      videoResolution = res;
+    }
+    int frN = videoFrame.getFrameRateN(), frD = videoFrame.getFrameRateD();
+    if (frN != frNumerator || frD != frDenominator){
+      frNumerator = frN;
+      frDenominator = frD;
+      changed = true;
+    }
+    if (changed){
+      updateFormatString();
+    }
+  }
+
+  void updateFormatString(){
+    if (formatType == null){
+      formatString = "No Signal";
+      return;
+    }
+    String fmt = "%d%s";
+    String fieldStr = fielded ? "i" : "p";
+    float fr = frNumerator / float(frDenominator);
+    boolean isFractional = fr == floor(fr);
+    if (isFractional){
+      fmt = fmt + "%d";
+      formatString = String.format(fmt, int(videoResolution.y), fieldStr, int(fr));
+    } else {
+      fmt = fmt + "%4.2f";
+      formatString = String.format(fmt, int(videoResolution.y), fieldStr, fr);
+    }
+  }
+
   DevolayFrameType getFrame(int timeout) {
 
     DevolayFrameType frameType = DevolayFrameType.NONE;
     //try {
       //frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, metadataFrame, timeout);
-      frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, null, timeout);
+      frameType = ndiReceiver.receiveCapture(videoFrame, audioFrame, metadataFrame, timeout);
     //} finally {
     //  lastFrameType = frameType;
     //}
     if (frameType == DevolayFrameType.VIDEO){
       numFrames += 1;
+      updateVideoFormat();
+    } else if (frameType == DevolayFrameType.METADATA){
+      println(metadataFrame.getData());
     }
     if (frameType != DevolayFrameType.NONE){
       DevolayPerformanceData performanceData = new DevolayPerformanceData();

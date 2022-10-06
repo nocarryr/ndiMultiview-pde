@@ -227,7 +227,7 @@ class Window {
     }
     nameLabel.text = name;
     nameLabel.render(canvas);
-    formatLabel.text = String.format("Dropped %d frames out of %d total", frameHandler.droppedFrames, frameHandler.totalFrames);
+    formatLabel.text = frameHandler.formatString;
     //formatLabel.text = String.format("%02d", imgIdx);
     //formatLabel.text = String.format("%dx%d", srcWidth, srcHeight);
     formatLabel.render(canvas);
