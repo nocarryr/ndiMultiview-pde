@@ -5,6 +5,10 @@ class Point {
     x = _x;
     y = _y;
   }
+  Point(Point other){
+    x = other.x;
+    y = other.y;
+  }
 
   Point(JSONObject json){
     x = json.getFloat("x");
@@ -27,13 +31,24 @@ class Point {
     y += other.y;
   }
 
+  void subtract(Point other){
+    x -= other.x;
+    y -= other.y;
+  }
+
+  boolean equals(Point other){
+    return x == other.x && y == other.y;
+  }
+
   String toStr(){
     return String.format("(%f, %f)", x, y);
   }
 }
 
 class Box {
-  Point pos, size;
+  public final Point pos, size;
+  private Callbacks callbacks;
+
   Box(){
     pos = new Point(0, 0);
     size = new Point(1, 1);
@@ -82,6 +97,7 @@ class Box {
   void move(Point dxy){
     pos.add(dxy);
     //setPos(pos.add(dxy));
+    updateGeometry("x", "y");
   }
 
   float getAspectRatioW(){
@@ -103,6 +119,7 @@ class Box {
   void translate(float dx, float dy){
     pos.x += dx;
     pos.y += dy;
+    updateGeometry("x", "y");
   }
 
   void translate(Point p){
@@ -114,7 +131,7 @@ class Box {
     pos.y = b.pos.y;
     size.x = b.size.x;
     size.y = b.size.y;
-    updateGeometry();
+    updateGeometry("x", "y", "w", "h");
   }
 
   Point getPos(){
@@ -123,7 +140,7 @@ class Box {
   void setPos(Point p){
     pos.x = p.x;
     pos.y = p.y;
-    updateGeometry();
+    updateGeometry("x", "y");
   }
 
   Point getSize(){
@@ -132,7 +149,7 @@ class Box {
   void setSize(Point s){
     size.x = s.x;
     size.y = s.y;
-    updateGeometry();
+    updateGeometry("w", "h");
   }
 
   float getX(){
@@ -140,7 +157,7 @@ class Box {
   }
   void setX(float x){
     pos.x = x;
-    updateGeometry();
+    updateGeometry("x");
   }
 
   float getY(){
@@ -148,7 +165,7 @@ class Box {
   }
   void setY(float y){
     pos.y = y;
-    updateGeometry();
+    updateGeometry("y");
   }
 
   float getWidth(){
@@ -156,7 +173,7 @@ class Box {
   }
   void setWidth(float w){
     size.x = w;
-    updateGeometry();
+    updateGeometry("w");
   }
 
   float getHeight(){
@@ -164,7 +181,7 @@ class Box {
   }
   void setHeight(float h){
     size.y = h;
-    updateGeometry();
+    updateGeometry("h");
   }
 
   float getRight(){
@@ -172,7 +189,7 @@ class Box {
   }
   void setRight(float r){
     pos.x = r - getWidth();
-    updateGeometry();
+    updateGeometry("x");
   }
 
   float getBottom(){
@@ -181,7 +198,7 @@ class Box {
   void setBottom(float b){
     pos.y = b - getHeight();
     //assert getBottom() == b;
-    updateGeometry();
+    updateGeometry("y");
   }
 
   float getHCenter(){
@@ -190,7 +207,7 @@ class Box {
   void setHCenter(float c){
     pos.x = c - getWidth() / 2;
     //assert getHCenter() == c;
-    updateGeometry();
+    updateGeometry("x");
   }
 
   float getVCenter(){
@@ -198,7 +215,7 @@ class Box {
   }
   void setVCenter(float c){
     pos.y = c - getHeight() / 2;
-    updateGeometry();
+    updateGeometry("y");
   }
 
   Point getCenter(){
@@ -207,7 +224,7 @@ class Box {
   void setCenter(Point c){
     pos.x = c.x - getWidth() / 2;
     pos.y = c.y - getHeight() / 2;
-    updateGeometry();
+    updateGeometry("x", "y");
   }
 
   Point getTopLeft(){
@@ -219,7 +236,7 @@ class Box {
   void setTopCenter(Point p){
     pos.x = p.x - getWidth() / 2;
     pos.y = p.y;
-    updateGeometry();
+    updateGeometry("x", "y");
   }
 
   Point getTopRight(){
@@ -237,6 +254,7 @@ class Box {
   void setBottomLeft(Point p){
     pos.x = p.x;
     pos.y = p.y - getHeight();
+    updateGeometry("x", "y");
   }
 
   Point getBottomCenter(){
@@ -245,7 +263,7 @@ class Box {
   void setBottomCenter(Point p){
     pos.x = p.x - getWidth() / 2;
     pos.y = p.y - getHeight();
-    updateGeometry();
+    updateGeometry("x", "y");
   }
 
   Point getBottomRight(){
@@ -257,6 +275,10 @@ class Box {
   }
 
   void updateGeometry(){ }
+  void updateGeometry(String ... props){
+    updateGeometry();
+    triggerCallback(props);
+  }
 
   void drawRect(PGraphics canvas){
     canvas.rect(getX(), getY(), getWidth(), getHeight());
@@ -268,6 +290,29 @@ class Box {
 
   void fillRect(PShape canvas, color c){
     canvas.fill(c);
+  }
+
+  public void registerCallback(Callback callback){
+    buildCallbacks();
+    callbacks.registerCallback(callback);
+  }
+
+  public boolean registerCallback(Object obj, String methodName){
+    buildCallbacks();
+    return callbacks.registerCallback(obj, methodName);
+  }
+
+  public void triggerCallback(String ... arg){
+    if (callbacks != null){
+      callbacks.triggerCallback(this, arg);
+    }
+  }
+
+  private void buildCallbacks(){
+    if (callbacks == null){
+      String[] s = {""};
+      callbacks = new Callbacks<Box,List<String>>(s.getClass());
+    }
   }
 
   String toStr(){
