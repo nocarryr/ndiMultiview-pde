@@ -319,3 +319,130 @@ class Box {
     return String.format("%s, %s", pos.toStr(), size.toStr());
   }
 }
+
+
+class DisplayBox {
+  private Point _topLeftPadding, _bottomRightPadding;
+  private Box _bounds, _content;
+  private boolean _visible = true;
+  private float _alpha = 1;
+
+  DisplayBox(){
+    _topLeftPadding = new Point(0, 0);
+    _bottomRightPadding = new Point(0, 0);
+    _bounds = new Box(0, 0, 10, 10);
+    _content = new Box(0, 0, 10, 10);
+    try {
+      assert _bounds.registerCallback(this, "onBoundsChanged");
+    } catch(Exception e){
+      e.printStackTrace();
+      throw(e);
+    }
+  }
+
+  boolean visible(){
+    return _visible;
+  }
+  void visible(boolean v){
+    _visible = v;
+  }
+
+  float alpha(){
+    return _alpha;
+  }
+  void alpha(float v){
+    _alpha = v;
+  }
+
+  float leftPadding(){
+    return _topLeftPadding.x;
+  }
+  void leftPadding(float v){
+    _topLeftPadding.x = v;
+    updateGeometry();
+  }
+  float topPadding(){
+    return _topLeftPadding.y;
+  }
+  void topPadding(float v){
+    _topLeftPadding.y = 0;
+    updateGeometry();
+  }
+  float rightPadding(){
+    return _bottomRightPadding.x;
+  }
+  void rightPadding(float v){
+    _bottomRightPadding.x = v;
+    updateGeometry();
+  }
+  float bottomPadding(){
+    return _bottomRightPadding.y;
+  }
+  void bottomPadding(float v){
+    _bottomRightPadding.y = v;
+    updateGeometry();
+  }
+
+  void setHorizontalPadding(float v){
+    _topLeftPadding.x = v;
+    _bottomRightPadding.x = v;
+    updateGeometry();
+  }
+
+  void setVerticalPadding(float v){
+    _topLeftPadding.y = v;
+    _bottomRightPadding.y = v;
+    updateGeometry();
+  }
+
+  void setPadding(float x, float y){
+    _topLeftPadding.x = x;
+    _topLeftPadding.y = y;
+    _bottomRightPadding.x = x;
+    _bottomRightPadding.y = y;
+    updateGeometry();
+  }
+  void setPadding(float v){
+    _topLeftPadding.x = v;
+    _topLeftPadding.y = v;
+    _bottomRightPadding.x = v;
+    _bottomRightPadding.y = v;
+    updateGeometry();
+  }
+
+  Box bounds(){
+    return _bounds.copy();
+  }
+  void bounds(Box b){
+    _bounds.setBox(b);
+  }
+  void bounds(Point pos, Point size){
+    bounds(new Box(pos, size));
+  }
+  void bounds(float x, float y, float w, float h){
+    bounds(new Box(x, y, w, h));
+  }
+
+  Box content(){
+    return _content.copy();
+  }
+
+  void updateGeometry(){
+    Point cPos = _bounds.getPos();
+    cPos.add(_topLeftPadding);
+    _content.setPos(cPos);
+
+    Point cSize = new Point(_bounds.getSize());
+    cSize.subtract(_topLeftPadding);
+    cSize.subtract(_bottomRightPadding);
+    _content.setSize(cSize);
+  }
+
+  public void onBoundsChanged(String ... props){
+    updateGeometry();
+  }
+
+  String toStr(){
+    return String.format("bounds: %s - content: %s", _bounds.toStr(), _content.toStr());
+  }
+}
