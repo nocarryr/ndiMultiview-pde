@@ -112,7 +112,7 @@ class Window {
     //float w = 0.5 * frameHandler.audio.nChannels;
     Box b = frameBox.copy();
     b.setHeight(frameBox.getHeight()*.8);
-    b.setWidth(frameBox.getWidth()*.125);
+    b.setWidth(frameBox.getWidth()*.1);
     b.setX(frameBox.getX()+3);
     b.setVCenter(frameBox.getVCenter());
     return b;
