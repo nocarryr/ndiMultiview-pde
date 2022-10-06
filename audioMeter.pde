@@ -354,10 +354,10 @@ class TickLabel extends TextBox {
     meter = parent.meter;
     dbValue = _dbValue;
     text = String.format("%3d", int(dbValue));
-    setTextSize(10);
+    textSize(10);
     drawBackground = false;
     setSize(new Point(parent.content().getWidth(), 10));
-    setAlign(CENTER, CENTER);
+    align(CENTER, CENTER);
     calcTickPosition();
   }
 
@@ -367,7 +367,7 @@ class TickLabel extends TextBox {
     setX(content.getX());
     float yp = meter.dbToYPos(content, dbValue, true);
     realTickPos = yp;
-    int _vAlign = getVAlign();
+    int _vAlign = vAlign();
     if (_vAlign == CENTER){
       setVCenter(yp);
     } else if (_vAlign == BOTTOM){

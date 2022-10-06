@@ -52,6 +52,10 @@ class TextSettings {
     return this;
   }
 
+  public int[] align(){
+    int[] result = {_hAlign, _vAlign};
+    return result;
+  }
   public TextSettings align(int h){
     return hAlign(h);
   }
@@ -180,21 +184,22 @@ class TextBox extends Box {
     return new TextBox(b, text, settings, bgColor);
   }
 
-  void setAlign(int _hAlign){ settings.align(_hAlign); }
-  void setAlign(int _hAlign, int _vAlign){ settings.align(_hAlign, _vAlign); }
+  int[] align() { return settings.align(); }
+  void align(int _hAlign){ settings.align(_hAlign); }
+  void align(int _hAlign, int _vAlign){ settings.align(_hAlign, _vAlign); }
 
-  int getHAlign(){ return settings.hAlign(); }
-  int getVAlign(){ return settings.vAlign(); }
+  int hAlign(){ return settings.hAlign(); }
+  void hAlign(int v){ settings.hAlign(v); }
 
-  int getTextSize(){ return settings.size(); }
-  void setTextSize(int value){ settings.size(value); }
+  int vAlign(){ return settings.vAlign(); }
+  void vAlign(int v){ settings.vAlign(v); }
 
-  Point getTextPos(){ return textPos.copy(); }
-  void setTextPos(Point p){
-    setTextPos(p.x, p.y);
-  }
+  void textSize(int value){ settings.size(value); }
+  int textSize(){ return settings.size(); }
 
-  void setTextPos(float x, float y){
+  Point textPos(){ return textPos.copy(); }
+  void textPos(Point p){ textPos(p.x, p.y); }
+  void textPos(float x, float y){
     textPos.x = x;
     textPos.y = y;
     textPosOverride = true;
@@ -202,7 +207,7 @@ class TextBox extends Box {
 
   void setTextPosRelative(Point p){
     Point offset = getPos();
-    setTextPos(p.x + offset.x, p.y + offset.y);
+    textPos(p.x + offset.x, p.y + offset.y);
   }
 
   void updateGeometry(){

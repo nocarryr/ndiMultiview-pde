@@ -61,7 +61,7 @@ class WindowGrid {
     fpsText = new TextBox(boundingBox.getPos(), 100, 20);
     fpsText.bgColor = 0xff404040;
     fpsText.setBottomCenter(boundingBox.getBottomCenter());
-    fpsText.setAlign(CENTER, CENTER);
+    fpsText.align(CENTER, CENTER);
     //fpsText.setTextPos(fpsText.getCenter());
     //fpsText.setTextPos(fpsText.getHCenter(), fpsText.getY() + 10);
     System.out.println("windowGrid bBox: "+boundingBox.toStr());

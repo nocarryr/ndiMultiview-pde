@@ -78,13 +78,13 @@ class Window {
     statsLabel = new TextBox(frameBox.getTopLeft(), 200, 60);
 
     nameLabel.setBottomCenter(frameBox.getBottomCenter());
-    nameLabel.setAlign(CENTER, BOTTOM);
+    nameLabel.align(CENTER, BOTTOM);
 
     formatLabel.setTopCenter(frameBox.getTopCenter());
-    formatLabel.setAlign(CENTER, TOP);
+    formatLabel.align(CENTER, TOP);
 
     statsLabel.setBottomLeft(frameBox.getBottomLeft());
-    statsLabel.setAlign(LEFT, BOTTOM);
+    statsLabel.align(LEFT, BOTTOM);
 
     System.out.println(String.format("%s bBox: %s, frame: %s", getId(), boundingBox.toStr(), frameBox.toStr()));
 
