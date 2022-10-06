@@ -1,107 +1,195 @@
-//import java.util.Map;
-//import static java.util.Map.entry;
 
+class TextSettings {
+  private int _hAlign = CENTER, _vAlign = CENTER, _size = 12;
+  private color _color = 0xffffffff;
+  private Callbacks callbacks;
+
+  TextSettings(){
+    String[] t = {""};
+    callbacks = new Callbacks<TextSettings,List<String>>(t.getClass());
+  }
+
+  TextSettings(int h, int v, int s, color c){
+    String[] t = {""};
+    callbacks = new Callbacks<TextSettings,List<String>>(t.getClass());
+    _hAlign = h;
+    _vAlign = v;
+    _size = s;
+    _color = c;
+  }
+
+  TextSettings copy(){
+    return new TextSettings(_hAlign, _vAlign, _size, _color);
+  }
+
+  public void registerCallback(Callback callback){
+    callbacks.registerCallback(callback);
+  }
+  public void registerCallback(Object obj, String methodName){
+    callbacks.registerCallback(obj, methodName);
+  }
+  public void triggerCallback(String ... arg){
+    if (callbacks != null){
+      callbacks.triggerCallback(this, arg);
+    }
+  }
+
+  public int hAlign(){ return _hAlign; }
+  public TextSettings hAlign(int v){
+    if (_hAlign != v){
+      _hAlign = v;
+      triggerCallback("halign");
+    }
+    return this;
+  }
+
+  public int vAlign(){ return _vAlign; }
+  public TextSettings vAlign(int v){
+    if (_vAlign != v){
+      _vAlign = v;
+      triggerCallback("vAlign");
+    }
+    return this;
+  }
+
+  public TextSettings align(int h){
+    return hAlign(h);
+  }
+
+  public TextSettings align(int h, int v){
+    //StringList props = new StringList();
+    List<String> props = new ArrayList<String>();
+    if (_hAlign != h){
+      props.add("hAlign");
+    }
+    if (_vAlign != v){
+      props.add("vAlign");
+    }
+    _hAlign = h;
+    _vAlign = v;
+    String[] arg = new String[props.size()];
+    triggerCallback(props.toArray(arg));
+    return this;
+  }
+
+  public int size(){ return _size; }
+  public TextSettings size(int s){
+    if (_size != s){
+      _size = s;
+      triggerCallback("size");
+    }
+    return this;
+  }
+
+  public color fillColor() { return _color; }
+  public TextSettings fillColor(color c){
+    if (_color != c){
+      _color = c;
+      triggerCallback("color");
+    }
+    return this;
+  }
+
+  public void render(PGraphics canvas, String txt, PFont font, Point pos){
+    canvas.fill(_color);
+    canvas.textFont(font);
+    canvas.textSize(_size);
+    canvas.textAlign(_hAlign, _vAlign);
+    canvas.text(txt, pos.x, pos.y);
+  }
+}
 
 
 class TextBox extends Box {
-  private int hAlign, vAlign;
-  private int bgColor, fgColor;
+  public final TextSettings settings;
+  private int bgColor;
   public String text;
   public boolean drawBackground = true;
   private Point textPos;
   private boolean textPosOverride;
-  private int textSize;
 
   TextBox(){
     super();
+    settings = new TextSettings();
     initDefaults();
   }
 
   TextBox(Point _pos, Point _size, String _text, int _hAlign, int _vAlign, int _textSize, int _bg, int _fg){
     super(_pos, _size);
+    settings = new TextSettings();
     initDefaults();
     text = _text;
-    hAlign = _hAlign;
-    vAlign = _vAlign;
-    textSize = _textSize;
+    settings.align(_hAlign, _vAlign);
+    settings.size(_textSize);
     bgColor = _bg;
-    fgColor = _fg;
-    //updateGeometry();
+    settings.fillColor(_fg);
   }
   TextBox(Box _b, String _text, int _hAlign, int _vAlign, int _textSize, int _bg, int _fg){
     super(_b);
+    settings = new TextSettings();
     initDefaults();
     text = _text;
-    hAlign = _hAlign;
-    vAlign = _vAlign;
-    textSize = _textSize;
+    settings.align(_hAlign, _vAlign);
+    settings.size(_textSize);
     bgColor = _bg;
-    fgColor = _fg;
-    //updateGeometry();
+    settings.fillColor(_fg);
+  }
+
+  TextBox(Box _b, String _text, TextSettings _settings, int _bg){
+    super(_b);
+    settings = _settings;
+    initDefaults();
+    text = _text;
+    bgColor = _bg;
   }
 
   TextBox(Point _pos, Point _size) {
     super(_pos, _size);
+    settings = new TextSettings();
     initDefaults();
-    //updateGeometry();
   }
   TextBox(Point _pos, float w, float h){
     super(_pos, w, h);
+    settings = new TextSettings();
     initDefaults();
-    //updateGeometry();
   }
   TextBox(float x, float y, Point _size){
     super(x, y, _size);
+    settings = new TextSettings();
     initDefaults();
-    //updateGeometry();
   }
 
   void initDefaults(){
     textPosOverride = false;
     text = "";
-    hAlign = CENTER;
-    vAlign = CENTER;
     bgColor = 0x60303030;
-    fgColor = 255;
-    textSize = 12;
     textPos = new Point(0, 0);
     updateGeometry();
+    settings.registerCallback(this, "onTextSettingsChanged");
   }
 
+  void onTextSettingsChanged(String ... props){
+    List<String> propList = Arrays.asList(props);
+    if (propList.contains("vAlign") || propList.contains("hAlign")){
+      updateGeometry();
+    }
+  }
 
-  //@Override
   TextBox copy(){
     Box b = new Box(this);
-    return new TextBox(b, text, hAlign, vAlign, textSize, bgColor, fgColor);
+    return new TextBox(b, text, settings, bgColor);
   }
 
-  void setAlign(int _hAlign){
-    if (_hAlign == hAlign){
-      return;
-    }
-    hAlign = _hAlign;
-    updateGeometry();
-  }
+  void setAlign(int _hAlign){ settings.align(_hAlign); }
+  void setAlign(int _hAlign, int _vAlign){ settings.align(_hAlign, _vAlign); }
 
-  void setAlign(int _hAlign, int _vAlign){
-    if (_hAlign == hAlign && _vAlign == vAlign){
-      return;
-    }
-    hAlign = _hAlign;
-    vAlign = _vAlign;
-    updateGeometry();
-  }
+  int getHAlign(){ return settings.hAlign(); }
+  int getVAlign(){ return settings.vAlign(); }
 
-  int getHAlign(){ return hAlign; }
-  int getVAlign(){ return vAlign; }
+  int getTextSize(){ return settings.size(); }
+  void setTextSize(int value){ settings.size(value); }
 
-  int getTextSize(){ return textSize; }
-  void setTextSize(int value){ textSize = value; }
-
-  Point getTextPos(){
-    return textPos.copy();
-  }
-
+  Point getTextPos(){ return textPos.copy(); }
   void setTextPos(Point p){
     setTextPos(p.x, p.y);
   }
@@ -123,6 +211,8 @@ class TextBox extends Box {
       return;
     }
     Point _textPos = new Point(-1, -1);
+    int hAlign = settings.hAlign(),
+        vAlign = settings.vAlign();
     if (hAlign == LEFT){
       _textPos.x = getX();
     } else if (hAlign == CENTER){
@@ -144,19 +234,14 @@ class TextBox extends Box {
   void render(PGraphics canvas){
     if (drawBackground){
       canvas.fill(bgColor);
-      //canvas.noStroke();
       canvas.stroke(128);
       canvas.rect(getX(), getY(), getWidth(), getHeight());
     }
-    canvas.fill(fgColor);
-    canvas.textFont(mvApp.windowFont);
-    canvas.textSize(textSize);
-    canvas.textAlign(hAlign, vAlign);
-    canvas.text(text, textPos.x, textPos.y);
+    settings.render(canvas, text, mvApp.windowFont, textPos);
   }
 
   String toStr(){
     String s = super.toStr();
-    return String.format("TextBox '%s': text='%s', textPos=%s, bgColor=%d, fgColor=%d", s, text, textPos.toStr(), bgColor, fgColor);
+    return String.format("TextBox '%s': text='%s', textPos=%s, bgColor=%d, fgColor=%d", s, text, textPos.toStr(), bgColor, settings.fillColor());
   }
 }
