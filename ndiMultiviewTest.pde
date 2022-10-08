@@ -98,6 +98,9 @@ public class MultiviewApplet extends PApplet {
   boolean updatingSources = false;
   boolean sourcesUpdated = false;
   boolean loopInitial = true;
+  boolean blinkFlag = false;
+  int blinkTimeMs = 500;
+  int nextBlinkTime = 0;
   int lastSourceUpdateFrame = 0;
   int lastConfSaveFrame = -1;
   int nextConfSaveFrame = -1;
@@ -191,6 +194,11 @@ public class MultiviewApplet extends PApplet {
       System.out.println("Closing resources");
       windowGrid.close();
       return;
+    }
+    int currentMs = millis();
+    if (currentMs >= nextBlinkTime){
+      blinkFlag = !blinkFlag;
+      nextBlinkTime = currentMs + blinkTimeMs;
     }
     g.background(0);
     windowGrid.render(g);

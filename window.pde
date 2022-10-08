@@ -3,7 +3,7 @@ class Window {
   String name = "";
   int col,row;
   Point padding;
-  Box boundingBox, frameBox, meterBox;
+  Box boundingBox, frameBox, meterBox, pgmTallyBox, pvwTallyBox;
   String ndiSourceName = "";
   int numFrames = 0, numDraws = 0;
   long droppedFrames = 0;
@@ -74,6 +74,18 @@ class Window {
     formatLabel = new TextBox(frameBox.getTopLeft(), 260, 18);
     statsLabel = new TextBox(frameBox.getTopLeft(), 200, 60);
 
+    pgmTallyBox = new Box(0, 0, 30, 30);
+    Point tallyOffset = new Point(frameBox.getWidth() / 5, -4);
+    Point pos = frameBox.getBottomLeft();
+    pos.add(tallyOffset);
+    pgmTallyBox.setBottomCenter(pos);
+
+    pvwTallyBox = pgmTallyBox.copy();
+    pos = frameBox.getBottomRight();
+    tallyOffset.x *= -1;
+    pos.add(tallyOffset);
+    pvwTallyBox.setBottomCenter(pos);
+
     nameLabel.setBottomCenter(frameBox.getBottomCenter());
     nameLabel.align(CENTER, BOTTOM);
 
@@ -120,6 +132,17 @@ class Window {
     frameBox = calcFrameBox();
     nameLabel.setBottomCenter(frameBox.getBottomCenter());
     formatLabel.setTopCenter(frameBox.getTopCenter());
+
+    Point tallyOffset = new Point(frameBox.getWidth() / 5, -4);
+    Point pos = frameBox.getBottomLeft();
+    pos.add(tallyOffset);
+    pgmTallyBox.setBottomCenter(pos);
+
+    pos = frameBox.getBottomRight();
+    tallyOffset.x *= -1;
+    pos.add(tallyOffset);
+    pvwTallyBox.setBottomCenter(pos);
+
     synchronized(frameHandler.audio){
       meterBox = calcMeterBox();
       frameHandler.audio.meter.setBoundingBox(meterBox);
@@ -210,6 +233,23 @@ class Window {
     return (ndiSourceName.length() > 0);
   }
 
+  void renderTally(PGraphics canvas){
+    canvas.stroke(128);
+
+    // Solid if tally set locally, blink if only from another receiver
+    boolean globalT = frameHandler.globalProgramTally(), localT = frameHandler.programTally();
+    boolean state = globalT && localT, tBlink = (globalT || localT) && mvApp.blinkFlag;
+    canvas.fill(state || tBlink ? 0xffff0000 : 0xff400000);
+    pgmTallyBox.drawRect(canvas);
+
+    globalT = frameHandler.globalPreviewTally();
+    localT = frameHandler.previewTally();
+    state = globalT && localT;
+    tBlink = (globalT || localT) && mvApp.blinkFlag;
+    canvas.fill(state || tBlink ? 0xff00ff00 : 0xff004000);
+    pvwTallyBox.drawRect(canvas);
+  }
+
   void render(PGraphics canvas){
     canvas.stroke(0);
     canvas.fill(0);
@@ -236,6 +276,8 @@ class Window {
       frameHandler.audio.meter.peakDbfs[0], frameHandler.audio.meter.peakAmp[0], frameHandler.audio.meter.rmsDbfs[0],
       frameHandler.audio.meter.blockSize, frameHandler.audio.meter.bufferLength[0], frameHandler.audio.stride, frameHandler.audio.meter.nChannels
     );
+    renderTally(canvas);
+    controls.updateTallyBtns();
     //statsLabel.render(canvas);
     synchronized(frameHandler.audio){
       if (frameHandler.audio.meterChanged){
@@ -250,10 +292,11 @@ class Window {
 
 class WindowControls {
   Window win;
-  String winId;
+  String winId, pgmTallyId, pvwTallyId;
   boolean controlsCreated = false;
   DropdownList sourceDropdown;
   Button editNameBtn;
+  Button pgmTally, pvwTally;
   boolean editNameEnabled = false;
   Textfield editNameField;
 
@@ -295,6 +338,26 @@ class WindowControls {
       setWidgetBox(editNameBtn, editNameBtnBox);
       setWidgetBox(editNameField, editNameFieldBox);
     }
+    if (!controlsCreated){
+      pgmTallyId = winId + "-pgmTallyBtn";
+      pvwTallyId = winId + "-pvwTallyBtn";
+      pgmTally = mvApp.cp5.addButton(pgmTallyId)
+                          .setLabel("Program")
+                          .setValue(0)
+                          .setSwitch(true)
+                          .plugTo(this, "onPgmTally");
+      pvwTally = mvApp.cp5.addButton(pvwTallyId)
+                          .setLabel("Preview")
+                          .setValue(0)
+                          .setSwitch(true)
+                          .plugTo(this, "onPvwTally");
+    }
+    Box btnBox = win.frameBox.copy();
+    btnBox.setSize(new Point(40, 16));
+    btnBox.setRight(win.frameBox.getRight());
+    setWidgetBox(pvwTally, btnBox);
+    btnBox.setRight(btnBox.getX());
+    setWidgetBox(pgmTally, btnBox);
     controlsCreated = true;
   }
 
@@ -418,6 +481,25 @@ class WindowControls {
         editNameEnabled = false;
         editNameBtn.setOff();
         editNameField.setVisible(false);
+    }
+  }
+
+  void onPgmTally(boolean state){
+    win.frameHandler.programTally(state);
+  }
+
+  void onPvwTally(boolean state){
+    win.frameHandler.previewTally(state);
+  }
+
+  void updateTallyBtns(){
+    float value = win.frameHandler.programTally() ? 1 : 0;
+    if (pgmTally.getValue() != value){
+      pgmTally.setValue(value);
+    }
+    value = win.frameHandler.previewTally() ? 1 : 0;
+    if (pvwTally.getValue() != value){
+      pvwTally.setValue(value);
     }
   }
 

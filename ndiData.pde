@@ -17,6 +17,7 @@ class FrameHandler {
   DevolayVideoFrame videoFrame;
   DevolayAudioFrame audioFrame;
   DevolayMetadataFrame metadataFrame;
+  private CombinedTally tally;
 
   int nextWriteIndex = 0, nextReadIndex = -1;
   NDIImageHandler[] images;
@@ -33,6 +34,7 @@ class FrameHandler {
     rwLock = new ReentrantReadWriteLock();
     rLock = rwLock.readLock();
     wLock = rwLock.writeLock();
+    tally = new CombinedTally();
     maxRenders = 0;
     inFlight = 0;
     maxInFlight = 0;
@@ -298,6 +300,65 @@ class FrameHandler {
    return true;
   }
 
+  private boolean setTally(Tally _tally){
+    //synchronized(this){
+      tally.local(_tally);
+      println(String.format("Tally from setter: %s", tally));
+      if (ndiReceiver == null){
+        return false;
+      }
+    //}
+    return ndiReceiver.setTally(_tally.toDevolay());
+  }
+
+  Tally tally(){ return tally.local; }
+  boolean tally(Tally _tally){
+    return setTally(_tally);
+  }
+
+  CombinedTally globalTally(){
+    return tally;
+  }
+
+  boolean globalProgramTally(){
+    return tally.or().program();
+  }
+
+  boolean globalPreviewTally(){
+    return tally.or().preview();
+  }
+
+  boolean programTally(){ return tally.local.program(); }
+  boolean programTally(boolean state){
+    Tally t = new Tally(state, tally.local().preview());
+    return tally(t);
+  }
+
+  boolean previewTally(){ return tally.local.preview(); }
+  boolean previewTally(boolean state){
+    Tally t = new Tally(tally.local().program, state);
+    return tally(t);
+  }
+
+  void processMetadata(){
+    try {
+      //synchronized(this) {
+        String metadata = metadataFrame.getData();
+        XML parsed = XML.parse(metadata);
+        if (parsed.getName() == "ndi_tally_echo"){
+          assert parsed.hasAttribute("on_program") && parsed.hasAttribute("on_preview");
+          boolean pgm = parsed.getString("on_program").contains("true"),
+                  pvw = parsed.getString("on_preview").contains("true");
+          DevolayTally d = new DevolayTally(pgm, pvw);
+          tally.source(d);
+          println(String.format("Tally from meta: %s", tally));
+        }
+      //}
+    } catch(Exception e){
+      e.printStackTrace();
+    }
+  }
+
   void updateVideoFormat(){
     if (videoFrame == null || !maybeConnected){
       formatType = null;
@@ -362,8 +423,6 @@ class FrameHandler {
     if (frameType == DevolayFrameType.VIDEO){
       numFrames += 1;
       updateVideoFormat();
-    } else if (frameType == DevolayFrameType.METADATA){
-      println(metadataFrame.getData());
     }
     if (frameType != DevolayFrameType.NONE){
       DevolayPerformanceData performanceData = new DevolayPerformanceData();
@@ -379,6 +438,78 @@ class FrameHandler {
       }
     }
     return frameType;
+  }
+}
+
+class Tally {
+  private boolean program = false, preview = false;
+  Tally(){
+
+  }
+  Tally(boolean pgm, boolean pvw){
+    program = pgm;
+    preview = pvw;
+  }
+  Tally(DevolayTally t){
+    program = t.isOnProgram();
+    preview = t.isOnPreview();
+  }
+
+  Tally copy(){
+    return new Tally(program, preview);
+  }
+
+  boolean program(){ return this.program; }
+  boolean preview(){ return this.preview; }
+
+  Tally or(Tally other){
+    Tally result = new Tally(program || other.program(), preview || other.preview());
+    return result;
+  }
+
+  Tally and(Tally other){
+    Tally result = new Tally(program && other.program(), preview && other.preview());
+    return result;
+  }
+
+  DevolayTally toDevolay(){
+    DevolayTally result = new DevolayTally(program, preview);
+    return result;
+  }
+
+  String toString(){
+    return String.format("program=%s, preview=%s", program, preview);
+  }
+}
+
+class CombinedTally {
+  private Tally local, source;
+  CombinedTally(){
+    local = new Tally();
+    source = new Tally();
+  }
+  CombinedTally(Tally _local, Tally _source){
+    local = _local;
+    source = _source;
+  }
+
+  CombinedTally copy(){
+    return new CombinedTally(local.copy(), source.copy());
+  }
+
+  Tally local(){ return this.local; }
+  void local(Tally t){ this.local = t; }
+  void local(DevolayTally t){ this.local = new Tally(t); }
+
+  Tally source(){ return this.source; }
+  void source(Tally t){ this.source = t; }
+  void source(DevolayTally t){ this.source = new Tally(t); }
+
+  Tally or(){ return local.or(source); }
+  Tally and(){ return local.and(source); }
+
+  String toString(){
+    return String.format("local: '%s', source: '%s'", local, source);
   }
 }
 
@@ -480,6 +611,7 @@ class NDIImageHandler implements PConstants{
       }
       assert image.pixels.length == getWidth() * getHeight();
     }
+    //println(videoFrame.getFormatType());
     assert videoFrame.getLineStride() == frameWidth * 4;
 
     if (fourCC == DevolayFrameFourCCType.RGBA){
@@ -585,6 +717,10 @@ class FrameThread extends Thread {
 
           case AUDIO:
             handler.audio.processFrame();
+            break;
+
+          case METADATA:
+            handler.processMetadata();
             break;
         }
       } catch(Exception e){
