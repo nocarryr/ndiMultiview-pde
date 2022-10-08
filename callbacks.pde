@@ -2,7 +2,9 @@
 interface Notifier<T,V> {
   public void registerCallback(Callback callback);
   public boolean registerCallback(Object obj, String methodName);
-  void triggerCallback(T instance, V arg);
+  boolean unregisterCallback(Callback callback);
+  boolean unregisterCallback(Object obj, String methodName);
+  public void triggerCallback(V arg);
 }
 
 interface Callback<T,V> {
@@ -10,20 +12,24 @@ interface Callback<T,V> {
 }
 
 
-class Callbacks<T,V> implements Notifier<T,V> {
-  Set<Callback> weakrefs;
-  HashMap<Integer,MethodCallback> methods;
-  Class v;
-  Callbacks(Class v){
-    this.v = v;
+abstract class Callbacks<T,V> implements Notifier<T,V>{
+  private Set<Callback> weakrefs;
+  private HashMap<Integer,MethodCallback> methods;
+  private Class v;
+  public Callbacks(){
     weakrefs = Collections.newSetFromMap(new WeakHashMap<Callback, Boolean>());
     methods = new HashMap<Integer,MethodCallback>();
   }
-  void add(Callback obj){
+
+  protected void setCallbackArgType(Class v){
+    this.v = v;
+  }
+
+  private void _addCallback(Callback obj){
     weakrefs.add(obj);
   }
 
-  boolean add(Object obj, String methodName){
+  private boolean _addCallback(Object obj, String methodName){
     Class[] paramTypes = {this.v};
     MethodCallback mcb = new MethodCallback(obj, methodName, paramTypes);
     if (mcb.valid()){
@@ -35,32 +41,42 @@ class Callbacks<T,V> implements Notifier<T,V> {
     return mcb.valid();
   }
 
-  void remove(Callback obj){
-    weakrefs.remove(obj);
+  private boolean _removeCallback(Callback obj){
+    return weakrefs.remove(obj);
   }
 
-  void remove(Object obj, String methodName){
+  private boolean _removeCallback(Object obj, String methodName){
     Class[] paramTypes = {this.v};
     MethodCallback mcb = new MethodCallback(obj, methodName, paramTypes);
     if (mcb.valid()){
       int h = mcb.callbackHash();
       if (methods.containsKey(h)){
         methods.remove(h);
+        return true;
       }
     }
+    return false;
   }
 
-  void registerCallback(Callback callback){
-    add(callback);
+  public void registerCallback(Callback callback){
+    _addCallback(callback);
   }
 
-  boolean registerCallback(Object obj, String methodName){
-    return add(obj, methodName);
+  public boolean registerCallback(Object obj, String methodName){
+    return _addCallback(obj, methodName);
   }
 
-  void triggerCallback(T instance, V args){
+  public boolean unregisterCallback(Callback callback){
+    return _removeCallback(callback);
+  }
+
+  public boolean unregisterCallback(Object obj, String methodName){
+    return _removeCallback(obj, methodName);
+  }
+
+  public void triggerCallback(V args){
     for (Callback cb : weakrefs){
-      cb.onCallback(instance, args);
+      cb.onCallback(this, args);
     }
     IntList toRemove = new IntList();
     for (MethodCallback mcb : methods.values()){

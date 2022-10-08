@@ -45,40 +45,48 @@ class Point {
   }
 }
 
-class Box {
+
+public class Box extends Callbacks<Box,String[]>{
+  String[] dummyString = {""};
   public final Point pos, size;
-  private Callbacks callbacks;
 
   Box(){
+    setCallbackArgType(dummyString.getClass());
     pos = new Point(0, 0);
     size = new Point(1, 1);
   }
   Box(float x, float y, float w, float h){
+    setCallbackArgType(dummyString.getClass());
     pos = new Point(x, y);
     size = new Point(w, h);
     //updateGeometry();
   }
   Box(Point _pos, Point _size){
+    setCallbackArgType(dummyString.getClass());
     pos = _pos.copy();
     size = _size.copy();
     //updateGeometry();
   }
   Box(Point _pos, float w, float h){
+    setCallbackArgType(dummyString.getClass());
     pos = _pos.copy();
     size = new Point(w, h);
     //updateGeometry();
   }
   Box(float x, float y, Point _size){
+    setCallbackArgType(dummyString.getClass());
     pos = new Point(x, y);
     size = _size.copy();
     //updateGeometry();
   }
   Box(Box _b){
+    setCallbackArgType(dummyString.getClass());
     pos = _b.getPos();
     size = _b.getSize();
     //updateGeometry();
   }
   Box(JSONObject json){
+    setCallbackArgType(dummyString.getClass());
     pos = new Point(json.getJSONObject("pos"));
     size = new Point(json.getJSONObject("size"));
   }
@@ -290,29 +298,6 @@ class Box {
 
   void fillRect(PShape canvas, color c){
     canvas.fill(c);
-  }
-
-  public void registerCallback(Callback callback){
-    buildCallbacks();
-    callbacks.registerCallback(callback);
-  }
-
-  public boolean registerCallback(Object obj, String methodName){
-    buildCallbacks();
-    return callbacks.registerCallback(obj, methodName);
-  }
-
-  public void triggerCallback(String ... arg){
-    if (callbacks != null){
-      callbacks.triggerCallback(this, arg);
-    }
-  }
-
-  private void buildCallbacks(){
-    if (callbacks == null){
-      String[] s = {""};
-      callbacks = new Callbacks<Box,List<String>>(s.getClass());
-    }
   }
 
   String toStr(){

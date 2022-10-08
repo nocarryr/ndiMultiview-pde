@@ -1,17 +1,16 @@
 
-class TextSettings {
+class TextSettings extends Callbacks<TextSettings,String[]> {
   private int _hAlign = CENTER, _vAlign = CENTER, _size = 12;
   private color _color = 0xffffffff;
-  private Callbacks callbacks;
 
   TextSettings(){
     String[] t = {""};
-    callbacks = new Callbacks<TextSettings,List<String>>(t.getClass());
+    setCallbackArgType(t.getClass());
   }
 
   TextSettings(int h, int v, int s, color c){
     String[] t = {""};
-    callbacks = new Callbacks<TextSettings,List<String>>(t.getClass());
+    setCallbackArgType(t.getClass());
     _hAlign = h;
     _vAlign = v;
     _size = s;
@@ -22,23 +21,15 @@ class TextSettings {
     return new TextSettings(_hAlign, _vAlign, _size, _color);
   }
 
-  public void registerCallback(Callback callback){
-    callbacks.registerCallback(callback);
-  }
-  public void registerCallback(Object obj, String methodName){
-    callbacks.registerCallback(obj, methodName);
-  }
-  public void triggerCallback(String ... arg){
-    if (callbacks != null){
-      callbacks.triggerCallback(this, arg);
-    }
+  void _triggerCallback(String ... arg){
+    triggerCallback(arg);
   }
 
   public int hAlign(){ return _hAlign; }
   public TextSettings hAlign(int v){
     if (_hAlign != v){
       _hAlign = v;
-      triggerCallback("halign");
+      _triggerCallback("halign");
     }
     return this;
   }
@@ -47,7 +38,7 @@ class TextSettings {
   public TextSettings vAlign(int v){
     if (_vAlign != v){
       _vAlign = v;
-      triggerCallback("vAlign");
+      _triggerCallback("vAlign");
     }
     return this;
   }
@@ -80,7 +71,7 @@ class TextSettings {
   public TextSettings size(int s){
     if (_size != s){
       _size = s;
-      triggerCallback("size");
+      _triggerCallback("size");
     }
     return this;
   }
@@ -89,7 +80,7 @@ class TextSettings {
   public TextSettings fillColor(color c){
     if (_color != c){
       _color = c;
-      triggerCallback("color");
+      _triggerCallback("color");
     }
     return this;
   }
@@ -174,7 +165,7 @@ class TextBox extends Box {
 
   void onTextSettingsChanged(String ... props){
     List<String> propList = Arrays.asList(props);
-    if (propList.contains("vAlign") || propList.contains("hAlign")){
+    if (propList.size() == 0 || propList.contains("vAlign") || propList.contains("hAlign")){
       updateGeometry();
     }
   }
