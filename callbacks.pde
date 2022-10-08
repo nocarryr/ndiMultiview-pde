@@ -1,5 +1,3 @@
-import java.lang.ref.*;
-import java.lang.reflect.*;
 
 interface Notifier<T,V> {
   public void registerCallback(Callback callback);
